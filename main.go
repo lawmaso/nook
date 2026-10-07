@@ -3,15 +3,16 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"nook/core/models"
-	"nook/data/cache"
-	"nook/data/store"
+	"nook/internal/cache"
+	"nook/internal/models"
+	"nook/internal/store"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -69,7 +70,9 @@ func main() {
 	)
 	defer stop()
 
-	pool, err := pgxpool.New(ctx, os.Getenv("DATABASE_URL"))
+	dbURL := os.Getenv("DATABASE_URL")
+	fmt.Printf("dbURL = %q", dbURL)
+	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
 		slog.Error("failed to connect to postgres", "error", err)
 		os.Exit(1)
