@@ -1,6 +1,6 @@
 import tkinter as tk
 import tkinter.ttk as ttk
-from core.models import User
+from apps.desktop.core.models import User
 
 import apps.desktop.ui.config as config
 from apps.desktop.ui.base.frames import NookFrame

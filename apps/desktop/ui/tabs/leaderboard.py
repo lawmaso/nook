@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from typing import Callable
 
 import apps.desktop.ui.config as config
-from core.analysis import *
-from core.models import User
+from apps.desktop.core.analysis import *
+from apps.desktop.core.models import User
 from apps.desktop.ui.base.frames import NookFrame
 from apps.desktop.ui.components.comparison import NookComparison
 from apps.desktop.ui.components.header import NookHeader

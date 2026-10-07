@@ -6,8 +6,8 @@ from zoneinfo import ZoneInfo
 
 import apps.desktop.ui.config as config
 import apps.desktop.ui.utils.formatters as fmt
-from core.analysis import point_gap, puzzle_gap, time_gap
-from core.models import User
+from apps.desktop.core.analysis import point_gap, puzzle_gap, time_gap
+from apps.desktop.core.models import User
 from apps.desktop.ui.base.frames import NookFrame
 from apps.desktop.ui.base.labels import *
 from apps.desktop.ui.utils.root import get_root

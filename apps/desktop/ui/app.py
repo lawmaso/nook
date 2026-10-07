@@ -2,7 +2,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 
 import apps.desktop.ui.config as config
-from core.models import Leaderboard
+from apps.desktop.core.models import Leaderboard
 from apps.desktop.ui.api.client import NookAPI
 from apps.desktop.ui.base.frames import NookFrame
 from apps.desktop.ui.tabs.leaderboard import NookLeaderboardTab

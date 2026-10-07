@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from core.models import Leaderboard, User
+from apps.desktop.core.models import Leaderboard, User
 
 class NookAPI(ABC):
     @abstractmethod
