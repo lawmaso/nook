@@ -9,7 +9,7 @@ export const PAGE_NAMES = [INIT, INIT2, GAMEOVER] as const;
 export type PageName = typeof PAGE_NAMES[number];
 
 export const createUrl = (page: PageName) => {
-    return `${SITE_PATTERN}${page}.php`
+    return `${SITE_PATTERN}${page}.php*`
 }
 
 export type PageConfig = {

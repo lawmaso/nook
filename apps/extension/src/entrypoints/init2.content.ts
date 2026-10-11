@@ -11,19 +11,11 @@ export default defineContentScript({
 
         setTimeout(() => {
             const button = document.querySelector(".button_green") as HTMLButtonElement;
-    
-            const table = document.querySelector(".tinytext") as HTMLTableElement;
-            // const recordCell = table.rows[2].cells[1];
-            
-            // const recordStr = recordCell.textContent;
-            // const recordTime = Number(recordStr.split("\u00A0")[0]);
-            // await chrome.storage.local.set({ record: recordTime });
-
-            if (button) {
-                button.click();
-            } else {
+            if (!button) {
                 console.error("[nook] No start button found");
             }
+
+            button.click();
         }, state[INIT2].min * 1000);
     }
 });
