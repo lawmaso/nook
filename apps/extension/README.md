@@ -1,3 +1,6 @@
-# WXT + React
+# Nook Extension
 
-This template should help get you started developing with React in WXT.
+## UI
+<p align="center">
+    <img src="./assets/nook-extension.png" width="600px"/>
+</p>
