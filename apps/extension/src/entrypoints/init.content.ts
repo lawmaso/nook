@@ -9,45 +9,46 @@ export default defineContentScript({
             return;
         }
 
-        const selectDiv = document.querySelector(".select-style");
-        if (!selectDiv) {
-            console.error("[nook] No select div found");
-            return;
-        }
+        function selectNooks(stars: number): boolean {
+            const STAR_COUNT_SELECTOR = "span > i";
 
-        const select = selectDiv.firstChild as HTMLSelectElement;
-        const options = select.options;
-
-        if (!options) {
-            console.error("[nook] No options found");
-            return;
-        }
-
-        let found = false;
-        for (const opt of options) {
-            const optText = opt.text.toLowerCase();
-
-            // const boardMatch = optText.includes("14x14");
-            // const nookMatch = optText.includes("3 stars");
-            const nookMatch = optText.includes(`${state.nooks} star${state.nooks > 1 ? "s" : ""}`);
-
-
-            // if (boardMatch && nookMatch) {
-            if (nookMatch) {
-                select.value = opt.value;
-                found = true;
-                break;
+            const classic = document.querySelector<HTMLFieldSetElement>("fieldset.sbp-sizes");
+            if (!classic) {
+                console.error("[nook] No fieldset found");
+                return false;
             }
+
+            const chips = classic.querySelectorAll<HTMLLabelElement>("label.sbp-chip");
+            if (!chips) {
+                console.error("[nook] No chips found");
+                return false;
+            }
+
+            const match = Array.from(chips).find((chip) => {
+                const text = chip.querySelector(STAR_COUNT_SELECTOR)?.textContent;
+                return text?.length == stars;
+            });
+
+            const input = match?.querySelector<HTMLInputElement>("input[type='radio']");
+            if (!input) {
+                console.error(`[nook] No size chip found for ${stars} star(s)`);
+                return false;
+            }
+
+            input.checked = true;
+            return true;
         }
 
+        const found = selectNooks(state.nooks);
         if (!found) {
-            console.error("[nook] No option match found");
+            console.error("[nook] No nook selection found");
             return;
         }
 
-        const button = document.querySelector(".button_green") as HTMLButtonElement;
+        const button = document.getElementById("sbp-go") as HTMLButtonElement;
         if (!button) {
             console.error("[nook] No creation button found");
+            return;
         }
 
         setTimeout(() => button.click(), state[INIT].min * 1000);
