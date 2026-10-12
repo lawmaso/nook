@@ -150,98 +150,137 @@ func (row rawLeaderboardRow) Global() (globalLeaderboardRow, error) {
 	}, nil
 }
 
-type rawLifetimeRow struct {
-	cols []string
+// Is this even needed?
+// The new site restructing forces us out of
+// the generalization of parsing rows of the lifetime table
+// (which no longer exists)
+type rawLifetimeData struct {
+	data []string
 }
 
-type lifetimeRow struct {
-	memberSince string
-	totalPoints string
-	attempted   string
-	solved      string
-	successRate string
-	avgPoints   string
-	avgTime     string
+type lifetimeData struct {
+	memberSince string // ex: April 15, 2026
+	totalPoints string // ex: 2,971,338
+	attempted   string // ex: 5,468
+	solved      string // ex: 5,468
+	successRate string // ex: 99.9% or 100%
+	avgTime     string // ex: 2:37
 }
 
-func getLifetimeStatsText(uid int) (rawLifetimeRow, error) {
+func getLifetimeData(uid int) (rawLifetimeData, error) {
 	profileURL := fmt.Sprintf(playerProfileURL, strconv.Itoa(uid))
 	response, err := http.Get(profileURL)
 
 	if err != nil {
-		return rawLifetimeRow{}, fmt.Errorf("GET %q: %w", profileURL, err)
+		return rawLifetimeData{}, fmt.Errorf("GET %q: %w", profileURL, err)
 	}
 	defer response.Body.Close()
 
 	doc, err := goquery.NewDocumentFromReader(response.Body)
 	if err != nil {
-		return rawLifetimeRow{}, fmt.Errorf("")
+		return rawLifetimeData{}, fmt.Errorf("creating document: %w", err)
 	}
 
-	// Find the lifetime statistic table
+	// Result raw lifetime data
+	data := rawLifetimeData{}
+
+	// Find member since text
 	table := doc.Find("div#tabs-1 table")
 	if table.Length() != 1 {
-		return rawLifetimeRow{}, fmt.Errorf(
-			"finding lifetime table for UID %d", uid,
-		)
+		return rawLifetimeData{}, fmt.Errorf("finding table in div#tabs-1")
 	}
 
-	// Extract rows
-	rows := table.Find("tbody tr")
-	if rows.Length() == 0 {
-		return rawLifetimeRow{}, fmt.Errorf(
-			"finding lifetime table rows for UID %d", uid,
-		)
+	td := table.Find("td").Eq(2)
+	if td.Length() != 1 {
+		return rawLifetimeData{}, fmt.Errorf("finding member since td")
 	}
 
-	// Extract table data
-	var data rawLifetimeRow
-	rows.Each(func(index int, row *goquery.Selection) {
-		// Skip the header
-		if index == 0 {
+	// Append the trimmed member since text
+	data.data = append(data.data, strings.TrimSpace(td.Text()))
+
+	// Find the aggregates binded to the profile
+	totals := doc.Find("div.sc-total")
+	if totals.Length() == 0 {
+		return rawLifetimeData{}, fmt.Errorf(".sc-total divs not found")
+	}
+
+	// Append each string total to data columns
+	totals.Each(func(_ int, total *goquery.Selection) {
+		strData := total.Find("b")
+
+		// Ignore malformed aggregations; expected length
+		// of calling function should handle the error
+		if strData.Length() != 1 {
+			return
+		}
+		data.data = append(data.data, strings.TrimSpace(strData.Text()))
+	})
+
+	// Due to site UI restructuring, we have to aggregate
+	// the attempts of each puzzle variation...
+	stats := doc.Find("div.sc-stats")
+	if stats.Length() == 0 {
+		return rawLifetimeData{}, fmt.Errorf(".sc-stats divs not found")
+	}
+
+	// Append the played aggregation for each puzzle type.
+	// Does not concern itself with casting to int, then casting
+	// back to string since that wouldn't be clean; just get the text data.
+	stats.Each(func(_ int, stat *goquery.Selection) {
+		playedData := stat.Find("b")
+
+		if playedData.Length() != 1 {
 			return
 		}
 
-		// Process columns
-		cols := row.Find("td")
-		if cols.Length() == 2 {
-			columnVal := cols.Eq(1).Text()
-
-			// Only append the actual column values
-			data.cols = append(data.cols, strings.TrimSpace(columnVal))
-		}
+		data.data = append(data.data, strings.TrimSpace(playedData.Text()))
 	})
-
-	// Get average time (stored in the last scorecard table)
-	table = doc.Find("table.scorecard_table").Eq(-1)
-	if table.Length() == 0 {
-		return rawLifetimeRow{}, fmt.Errorf(
-			"finding last scorecard table for UID %d", uid,
-		)
-	}
-
-	timeRow := table.Find("tbody tr td").Last()
-	data.cols = append(data.cols, strings.TrimSpace(timeRow.Text()))
 
 	return data, nil
 }
 
-// Adapts [rawLifetimeRow] into [lifetimeRow]
-func (r rawLifetimeRow) Lifetime() (lifetimeRow, error) {
-	expectedCols := 7
-	if len(r.cols) != expectedCols {
-		return lifetimeRow{}, fmt.Errorf(
-			"expected %d columns, got %d", expectedCols, len(r.cols),
+// Adapts [rawLifetimeData] into [lifetimeData]
+func (data rawLifetimeData) Lifetime() (lifetimeData, error) {
+	// Expect at least 5 since the aggregations
+	// invariantly exist on each user profile whether
+	// or not they've played any puzzles
+	expectedLength := 5
+	length := len(data.data)
+
+	if length < expectedLength {
+		return lifetimeData{}, fmt.Errorf(
+			"got %d entries, expected %d", length, expectedLength,
 		)
 	}
 
-	return lifetimeRow{
-		memberSince: r.cols[0],
-		totalPoints: r.cols[1],
-		attempted:   r.cols[2],
-		solved:      r.cols[3],
-		successRate: r.cols[4],
-		avgPoints:   r.cols[5],
-		avgTime:     r.cols[6],
+	var attempted int
+	if length == 5 {
+		// Edge case: player hasn't played any puzzles
+		attempted = 0
+
+	} else {
+		// Otherwise: length > 5, so at least 1 puzzle
+		// variation has been played by the user
+
+		// Aggregate attempts so wrapper is cleaner and
+		// we don't have to account for each individual puzzle type
+		for _, attempts := range data.data[5:] {
+			att, err := strconv.Atoi(attempts)
+			if err != nil {
+				return lifetimeData{}, fmt.Errorf(
+					"converting attempt %q to integer", attempts,
+				)
+			}
+			attempted += att
+		}
+	}
+
+	return lifetimeData{
+		memberSince: data.data[0],
+		totalPoints: data.data[1],
+		attempted:   strconv.Itoa(attempted),
+		solved:      data.data[2],
+		successRate: data.data[3],
+		avgTime:     data.data[4],
 	}, nil
 }

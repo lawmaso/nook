@@ -66,11 +66,13 @@ func Date(s string) (time.Time, error) {
 }
 
 func Solved(s string) (int, error) {
-	return strconv.Atoi(strings.Fields(s)[0])
+	return strconv.Atoi(
+		strings.ReplaceAll(strings.Fields(s)[0], ",", ""),
+	)
 }
 
 func Attempted(s string) (int, error) {
-	return strconv.Atoi(strings.Fields(s)[0])
+	return Solved(s)
 }
 
 func SolveAttempted(s string) (int, int, error) {
@@ -106,16 +108,23 @@ func AcceptanceRate(solved, attempted int) float64 {
 }
 
 func AvgTimeGlobal(s string) (float64, error) {
-	sep := "\u00a0" // \xa0 == non-breaking space
-	timeStr, _, found := strings.Cut(s, sep)
+	trimmed := strings.TrimSpace(s)
 
-	if !found {
-		return -1.0, fmt.Errorf(
-			"seperator %q not found in %q", sep, timeStr,
-		)
+	parts := strings.Split(trimmed, ":")
+	if len(parts) > 3 {
+		return 0, fmt.Errorf("invalid avg time %q: expected [[h:]m:]s", s)
 	}
 
-	return strconv.ParseFloat(timeStr, 64)
+	var total float64
+	for _, p := range parts {
+		n, err := strconv.ParseUint(p, 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("invalid time %q: %w", s, err)
+		}
+		total = total*60 + float64(n)
+	}
+
+	return total, nil
 }
 
 func AvgTimeMonthly(s string) (float64, error) {
@@ -124,6 +133,10 @@ func AvgTimeMonthly(s string) (float64, error) {
 
 func AvgPoints(s string) (float64, error) {
 	return strconv.ParseFloat(strings.Fields(s)[0], 64)
+}
+
+func AvgPointsGlobal(totalPoints int, solved int) (float64, error) {
+	return float64(totalPoints / solved), nil
 }
 
 func TotalPoints(s string) (int, error) {

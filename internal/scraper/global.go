@@ -34,35 +34,36 @@ func parseGlobalRow(r globalLeaderboardRow) (*models.User, error) {
 		return nil, fmt.Errorf("parsing totalPoints %q: %w", r.totalPoints, err)
 	}
 
-	rawLifetime, err := getLifetimeStatsText(uid)
+	rawLifetime, err := getLifetimeData(uid)
 	if err != nil {
 		return nil, fmt.Errorf("getting lifetime stats text: %w", err)
 	}
 
-	lifetime, err := rawLifetimeRow.Lifetime(rawLifetime)
+	lifetime, err := rawLifetimeData.Lifetime(rawLifetime)
 	if err != nil {
 		return nil, fmt.Errorf("adapting raw lifetime row: %w", err)
 	}
 
 	solved, err := parser.Solved(lifetime.solved)
 	if err != nil {
-		return nil, fmt.Errorf("parsing: %w", err)
+		return nil, fmt.Errorf("parsing solved: %w", err)
 	}
 
 	attempted, err := parser.Solved(lifetime.attempted)
 	if err != nil {
-		return nil, fmt.Errorf("parsing: %w", err)
+		return nil, fmt.Errorf("parsing attempted: %w", err)
 	}
 
 	acceptanceRate := parser.AcceptanceRate(solved, attempted)
-	avgPoints, err := parser.AvgPoints(lifetime.avgPoints)
+	avgPoints, err := parser.AvgPointsGlobal(totalPoints, solved)
+
 	if err != nil {
-		return nil, fmt.Errorf("parsing: %w", err)
+		return nil, fmt.Errorf("parsing global avg points: %w", err)
 	}
 
 	avgTime, err := parser.AvgTimeGlobal(lifetime.avgTime)
 	if err != nil {
-		return nil, fmt.Errorf("parsing: %w", err)
+		return nil, fmt.Errorf("parsing avg time: %w", err)
 	}
 
 	return &models.User{
@@ -109,7 +110,7 @@ func getGlobalLeaderboardUsers(ctx context.Context) ([]*models.User, error) {
 		})
 	}
 
-	// block until all goroutines finish
+	// Block until all goroutines finish
 	if err := g.Wait(); err != nil {
 		return nil, fmt.Errorf(
 			"one or more global row parses failed: %w", err,
