@@ -46,10 +46,10 @@ class Nook(tk.Tk):
             on_load=lambda: self.api.get_leaderboard(Leaderboard.MONTHLY)
         ), title=Leaderboard.MONTHLY.value.capitalize())
 
-        # self.add_tab(NookLeaderboardTab(
-        #     self.notebook,
-        #     on_load=lambda: self.api.get_leaderboard(Leaderboard.GLOBAL)
-        # ), title=Leaderboard.GLOBAL.value.capitalize())
+        self.add_tab(NookLeaderboardTab(
+            self.notebook,
+            on_load=lambda: self.api.get_leaderboard(Leaderboard.GLOBAL)
+        ), title=Leaderboard.GLOBAL.value.capitalize())
 
     def add_tab(self, tab: NookLeaderboardTab, title: str):
         self.notebook.add(tab, text=title)

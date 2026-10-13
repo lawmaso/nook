@@ -36,28 +36,49 @@ def _get_leaderboard_data(type: Leaderboard) -> list[list[str]] | None:
         return None
 
 
-def _get_additional_data(uid: int) -> list[list[str]] | None:
+def _get_additional_data(uid: int, legacy_ui: bool = False) -> list[str] | None:
     try:
         response = requests.get(PLAYER_URL.format(uid=uid), timeout=10)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, "html.parser")
 
-        scorecard_tables = soup.find_all("table", class_="scorecard_table")
-        scorecard_table = scorecard_tables[5]
-        lifetime_table = soup.find("div", id="tabs-1")
-
-        scorecard_rows = scorecard_table.find_all("tr")
-        avg_time = scorecard_rows[3].find_all("td")[1].text.strip()
-        lifetime_rows = lifetime_table.find_all("tr")[1:]  # [1:] skip header
-
         data = []
-        for row in lifetime_rows:
-            cols = [e.text.strip() for e in row.find_all("td")][1]
-            data.append(cols)
-        
-        data.append(avg_time)
-        return data
+        if legacy_ui:
+            scorecard_tables = soup.find_all("table", class_="scorecard_table")
+            scorecard_table = scorecard_tables[5]
+            lifetime_table = soup.find("div", id="tabs-1")
+
+            scorecard_rows = scorecard_table.find_all("tr")
+            avg_time = scorecard_rows[3].find_all("td")[1].text.strip()
+            lifetime_rows = lifetime_table.find_all("tr")[1:]  # [1:] skip header
+
+            for row in lifetime_rows:
+                cols = [e.text.strip() for e in row.find_all("td")][1]
+                data.append(cols)
+            
+            data.append(avg_time)
+            return data
+        else:
+            # extract the member since str
+            div = soup.find("div", id="tabs-1")
+            table = div.find("table")
+            member_since = table.find_all("td")[2]
+            data.append(member_since.text.strip())
+
+            # find profile aggregations
+            totals = soup.find_all("div", class_="sc-total")
+            for total in totals:
+                str_data = total.find("b")
+                data.append(str_data.text.strip())
+
+            # find variant-specific data
+            stats = soup.find_all("div", class_="sc-stats")
+            for stat in stats:
+                played_data = stat.find("b")
+                data.append(played_data.text.strip())
+
+            return data
     except Exception as e:
         logger.error("Failed to fetch additional data for uid=%s: %s",
                      uid, e)
@@ -86,19 +107,30 @@ def fetch_global_leaderboard() -> list[User | None]:
             failed.set()
             return
 
-        member_since, _, attempted, \
-            solved, acceptance_rate, avg_points, avg_time = additional_data
+        # dead code: legacy ui return signature
+        # member_since, _, attempted, \
+        #     solved, acceptance_rate, avg_points, avg_time = additional_data
+        member_since = additional_data[0]
+        solved = additional_data[2]
+        acceptance_rate = additional_data[3]
+        avg_time = additional_data[4]
+
+        # aggregate attempts on each puzzle variation
+        attempted = 0
+        for i in range(5, len(additional_data)):
+            played = additional_data[i]
+            attempted += int(played.replace(",", "").strip())
 
         uid                 = p.uid(uid)
         rank                = p.rank(rank)
         last_active         = p.date(last_active, "%B %d, %Y")
         member_since        = p.date(member_since, "%B %d, %Y")
         solved              = p.solved(solved)
-        attempted           = p.attempted(attempted)
+        attempted           = attempted
         acceptance_rate     = p.acceptance_rate(solved, attempted)
         avg_time            = p.avg_time_global(avg_time)
-        avg_points          = p.avg_points(avg_points)
         total_points        = p.total_points(total_points)
+        avg_points          = p.avg_points_global(total_points, solved)
 
         global_users[rank] = User(
             uid=uid, rank=rank, username=username,
@@ -154,7 +186,7 @@ if __name__ == "__main__":
     import time
 
     logging.basicConfig(
-        filename="data/scraper.log",
+        filename="apps/desktop/data/scraper.log",
         format="(%(asctime)s %(levelname)s %(message)s)",
         level=logging.INFO
     )
