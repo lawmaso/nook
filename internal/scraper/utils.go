@@ -227,7 +227,7 @@ func getLifetimeData(uid int) (rawLifetimeData, error) {
 	// Does not concern itself with casting to int, then casting
 	// back to string since that wouldn't be clean; just get the text data.
 	stats.Each(func(_ int, stat *goquery.Selection) {
-		playedData := stat.Find("b")
+		playedData := stat.Find("b").Eq(0)
 
 		if playedData.Length() != 1 {
 			return
@@ -257,7 +257,6 @@ func (data rawLifetimeData) Lifetime() (lifetimeData, error) {
 	if length == 5 {
 		// Edge case: player hasn't played any puzzles
 		attempted = 0
-
 	} else {
 		// Otherwise: length > 5, so at least 1 puzzle
 		// variation has been played by the user
@@ -265,7 +264,7 @@ func (data rawLifetimeData) Lifetime() (lifetimeData, error) {
 		// Aggregate attempts so wrapper is cleaner and
 		// we don't have to account for each individual puzzle type
 		for _, attempts := range data.data[5:] {
-			att, err := strconv.Atoi(attempts)
+			att, err := strconv.Atoi(strings.ReplaceAll(attempts, ",", ""))
 			if err != nil {
 				return lifetimeData{}, fmt.Errorf(
 					"converting attempt %q to integer", attempts,

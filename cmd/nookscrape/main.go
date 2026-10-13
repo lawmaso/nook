@@ -24,8 +24,10 @@ func main() {
 
 		fmt.Printf("---- %v\n", model)
 		for _, user := range users {
-			fmt.Println(user.String())
+			fmt.Println(user.DetailedString())
 		}
+
+		fmt.Println()
 	}
 
 	if failed {
