@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -9,6 +10,9 @@ import (
 )
 
 func main() {
+	detailed := flag.Bool("detailed", false, "print detailed user info")
+	flag.Parse()
+
 	failed := false
 
 	for _, model := range []models.Leaderboard{
@@ -24,7 +28,11 @@ func main() {
 
 		fmt.Printf("---- %v\n", model)
 		for _, user := range users {
-			fmt.Println(user.DetailedString())
+			if *detailed {
+				fmt.Println(user.DetailedString())
+			} else {
+				fmt.Println(user.String())
+			}
 		}
 
 		fmt.Println()
