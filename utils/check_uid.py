@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-from data.scraper import PLAYER_URL
+from apps.desktop.data.scraper import PLAYER_URL
 
 if __name__ == "__main__":
     lower_bound = 10_866
