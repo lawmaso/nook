@@ -3,6 +3,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -141,4 +142,37 @@ func AvgPointsGlobal(totalPoints int, solved int) (float64, error) {
 
 func TotalPoints(s string) (int, error) {
 	return strconv.Atoi(strings.ReplaceAll(s, ",", ""))
+}
+
+// Integers with thousands separators: "5,888" to 5888
+func Count(s string) (int, error) {
+	return strconv.Atoi(
+		strings.ReplaceAll(strings.TrimSpace(s), ",", ""))
+}
+
+// Clock format: "2:35" or "1:02:37"
+func AvgTimeClock(s string) (float64, error) {
+	parts := strings.Split(strings.TrimSpace(s), ":")
+	if lenParts := len(parts); lenParts < 2 || lenParts > 3 {
+		return -1, fmt.Errorf("unexpected clock format %q", s)
+	}
+
+	secs := 0
+	for _, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil || n < 0 {
+			return -1, fmt.Errorf("bad clock value %q", s)
+		}
+		secs = 60*secs + n
+	}
+
+	return math.Round(float64(secs)/60*100) / 100, nil
+}
+
+func AvgPointsDivide(total, solved int) float64 {
+	if solved == 0 {
+		return 0
+	}
+
+	return math.Round(float64(total)/float64(solved)*100) / 100
 }
