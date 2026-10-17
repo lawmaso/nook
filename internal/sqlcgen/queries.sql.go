@@ -44,7 +44,7 @@ func (q *Queries) GetEntriesForScrape(ctx context.Context, scrapeID int64) ([]Ge
 
 const getLatestScrapes = `-- name: GetLatestScrapes :many
 SELECT scrape_id, leaderboard_kind, scraped_at
-FROM leaderboard_scrape
+FROM leaderboard_scrapes
 WHERE leaderboard_kind = $1
 ORDER BY scraped_at DESC
 LIMIT $2
@@ -77,7 +77,7 @@ func (q *Queries) GetLatestScrapes(ctx context.Context, arg GetLatestScrapesPara
 
 const getScrapesInRange = `-- name: GetScrapesInRange :many
 SELECT scrape_id, leaderboard_kind, scraped_at
-FROM leaderboard_scrape
+FROM leaderboard_scrapes
 WHERE leaderboard_kind = $1
     AND scraped_at BETWEEN $2 and $3
 ORDER BY scraped_at ASC
@@ -126,7 +126,7 @@ func (q *Queries) InsertEntry(ctx context.Context, arg InsertEntryParams) error 
 }
 
 const insertScrape = `-- name: InsertScrape :one
-INSERT INTO leaderboard_scrape (leaderboard_kind, scraped_at)
+INSERT INTO leaderboard_scrapes (leaderboard_kind, scraped_at)
 VALUES ($1, now())
 RETURNING scrape_id
 `
