@@ -13,11 +13,9 @@ import (
 	"nook/internal/models"
 )
 
-// Reads REFRESH_INTERVAL (seconds) from the environment.
-//
-// Falls back to a default of 2 minutes if the parse fails.
+// Reads REFRESH_INTERVAL (seconds) from the environment
 func ParseRefreshInterval() time.Duration {
-	const defaultInterval = 2 * time.Minute
+	const defaultInterval = 20 * time.Second
 
 	raw := os.Getenv("REFRESH_INTERVAL")
 	// fmt.Println(raw)

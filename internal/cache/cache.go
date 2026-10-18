@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -17,10 +18,15 @@ type CachedLeaderboard struct {
 
 // The main interface for the leaderboard cache
 type LeaderboardCache struct {
+	scraper            *scraper.Client
 	mu                 sync.RWMutex
 	monthlyLeaderboard CachedLeaderboard
 	globalLeaderboard  CachedLeaderboard
 	OnRefreshed        func(lb models.Leaderboard, curr []*models.User)
+}
+
+func New(sc *scraper.Client) *LeaderboardCache {
+	return &LeaderboardCache{scraper: sc}
 }
 
 // Helper that returns a reference to a cached leaderboard
@@ -52,13 +58,13 @@ func (cache *LeaderboardCache) GetCachedLeaderboard(lb models.Leaderboard) (Cach
 
 // Refreshes a cached leaderboard
 func (cache *LeaderboardCache) Refresh(lb models.Leaderboard) error {
+	ctx := context.Background()
+
 	// NOTE: Allow the scrape to occur outside the lock since
 	// we don't want the network call holding a write lock (and blocking readers)
-	users, stats, err := scraper.GetLeaderboardUsers(lb)
+	users, stats, err := cache.scraper.GetLeaderboardUsers(ctx, lb)
 	if err != nil {
-		return fmt.Errorf(
-			"cache refresh failed",
-		)
+		return fmt.Errorf("cache refresh failed")
 	}
 
 	cache.mu.Lock()
@@ -86,7 +92,7 @@ func (cache *LeaderboardCache) Seed(lb models.Leaderboard, curr, prev []*models.
 		return
 	}
 
-	// Store the passed data into the cache
+	// Store the passed data in the cache
 	cachedLeaderboard.Prev = prev
 	cachedLeaderboard.Curr = curr
 }

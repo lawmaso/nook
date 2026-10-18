@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,6 +11,7 @@ import (
 
 	"nook/internal/cache"
 	"nook/internal/models"
+	"nook/internal/scraper"
 	"nook/internal/store"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -70,9 +70,9 @@ func main() {
 	)
 	defer stop()
 
-	dbURL := os.Getenv("DATABASE_URL")
-	fmt.Printf("dbURL = %q", dbURL)
-	pool, err := pgxpool.New(ctx, dbURL)
+	db := os.Getenv("DATABASE_URL")
+
+	pool, err := pgxpool.New(ctx, db)
 	if err != nil {
 		slog.Error("failed to connect to postgres", "error", err)
 		os.Exit(1)
@@ -80,12 +80,14 @@ func main() {
 	defer pool.Close()
 
 	st := store.New(pool)
-	lbCache := &cache.LeaderboardCache{}
+	lbCache := cache.New(scraper.NewClient())
 
 	lbCache.OnRefreshed = func(lb models.Leaderboard, curr []*models.User) {
 		if err := st.SaveScrape(ctx, lb, curr); err != nil {
 			// Peristent failure shouldn't affect live serving
 			slog.Error("failed to persist scrape", "leaderboard", lb.String(), "error", err)
+		} else {
+			slog.Info("refreshed successfully", "leaderbaord", lb.String())
 		}
 	}
 
@@ -104,7 +106,7 @@ func main() {
 	go func() {
 		slog.Info("nook server listening", "addr", httpServer.Addr, "refresh_interval", interval)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("server error", "error", "err")
+			slog.Error("server error", "error", err)
 		}
 	}()
 
