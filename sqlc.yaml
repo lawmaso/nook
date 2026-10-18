@@ -2,7 +2,8 @@ version: "2"
 sql:
   - engine: "postgresql"
     queries: "db/queries.sql"
-    schema: "db/schema.sql"
+    # schema: "db/schema.sql"
+    schema: "supabase/20260805000242_init_schema.sql"
     gen:
       go:
         package: "sqlcgen"

@@ -1,0 +1,21 @@
+services:
+  db:
+    container_name: nookdb
+    image: postgres:16
+    environment:
+      POSTGRES_USER: nook
+      POSTGRES_PASSWORD: nook
+      POSTGRES_DB: nookdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - nookdb:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nook -d nookdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 4
+
+volumes:
+  nookdb:
