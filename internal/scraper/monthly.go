@@ -4,13 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"golang.org/x/sync/errgroup"
-
 	"nook/internal/models"
 	"nook/internal/parser"
 )
 
-// Parses a [monthlyLeaderboardRow] into [*models.User]
 func parseMonthRow(r monthlyLeaderboardRow) (*models.User, error) {
 	uid, err := parser.UID(r.profileHref)
 	if err != nil {
@@ -80,53 +77,27 @@ func parseMonthRow(r monthlyLeaderboardRow) (*models.User, error) {
 }
 
 // Returns all currents users on the monthly leaderboard
-func getMonthlyLeaderboardUsers(ctx context.Context) ([]*models.User, error) {
-	// Fetch monthly leaderboard text
-	data, err := getLeaderboardText(models.MonthlyLeaderboard)
+func (client *Client) getMonthlyLeaderboardUsers(ctx context.Context) ([]*models.User, error) {
+	data, err := client.getLeaderboardText(ctx, models.MonthlyLeaderboard)
 	if err != nil {
 		return nil, fmt.Errorf("getting monthly leaderboard text: %w", err)
 	}
 
-	// Preallocated monthly users slice
+	// No network calls per row, so no goroutines or errgroup needed
 	users := make([]*models.User, len(data))
+	for i, row := range data {
+		mr, err := row.Monthly()
+		if err != nil {
+			return nil, fmt.Errorf("row %d: adapting to monthly", i, err)
+		}
 
-	// Wait group implementation
-	// var wg sync.WaitGroup
-	// for index, row := range data {
-	// 	wg.Go(func() {
-	// 		user, _ := parseMonthRow(row)
-	// 		users[index] = user
-	// 	})
-	// }
-	// wg.Wait()
+		user, err := parseMonthRow(mr)
+		if err != nil {
+			return nil, fmt.Errorf("row %d: %w", i, err)
+		}
 
-	g, _ := errgroup.WithContext(ctx)
-
-	for index, row := range data {
-		g.Go(func() error {
-			monthRow, err := row.Monthly()
-			if err != nil {
-				return fmt.Errorf(
-					"adapting raw row into monthly: %w", err,
-				)
-			}
-
-			user, err := parseMonthRow(monthRow)
-			if err != nil {
-				return fmt.Errorf(
-					"processing row index %d: %w", index, err,
-				)
-			}
-
-			users[index] = user
-			return nil
-		})
+		users[i] = user
 	}
 
-	if err := g.Wait(); err != nil {
-		return nil, fmt.Errorf(
-			"one or more monthly row parses failed: %w", err,
-		)
-	}
 	return users, nil
 }

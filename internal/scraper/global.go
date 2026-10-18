@@ -10,13 +10,11 @@ import (
 	"nook/internal/parser"
 )
 
-// Parses a [globalLeaderboardRow] into [*models.User]
-func parseGlobalRow(r globalLeaderboardRow) (*models.User, error) {
-	uid, err := parser.UID(r.profileHref)
-	if err != nil {
-		return nil, fmt.Errorf("parsing href %q: %w", r.profileHref, err)
-	}
-
+func parseGlobalRow(
+	uid int,
+	r globalLeaderboardRow,
+	lt lifetimeData,
+) (*models.User, error) {
 	rank, err := parser.Rank(r.rank)
 	if err != nil {
 		return nil, fmt.Errorf("parsing rank %q: %w", r.rank, err)
@@ -34,36 +32,14 @@ func parseGlobalRow(r globalLeaderboardRow) (*models.User, error) {
 		return nil, fmt.Errorf("parsing totalPoints %q: %w", r.totalPoints, err)
 	}
 
-	rawLifetime, err := getLifetimeData(uid)
+	solved, err := parser.Count(lt.solved)
 	if err != nil {
-		return nil, fmt.Errorf("getting lifetime stats text: %w", err)
+		return nil, fmt.Errorf("parsing solved %q: %w", lt.solved, err)
 	}
 
-	lifetime, err := rawLifetimeData.Lifetime(rawLifetime)
+	avgTime, err := parser.AvgTimeClock(lt.avgTime)
 	if err != nil {
-		return nil, fmt.Errorf("adapting raw lifetime row: %w", err)
-	}
-
-	solved, err := parser.Solved(lifetime.solved)
-	if err != nil {
-		return nil, fmt.Errorf("parsing solved: %w", err)
-	}
-
-	attempted, err := parser.Solved(lifetime.attempted)
-	if err != nil {
-		return nil, fmt.Errorf("parsing attempted: %w", err)
-	}
-
-	acceptanceRate := parser.AcceptanceRate(solved, attempted)
-	avgPoints, err := parser.AvgPointsGlobal(totalPoints, solved)
-
-	if err != nil {
-		return nil, fmt.Errorf("parsing global avg points: %w", err)
-	}
-
-	avgTime, err := parser.AvgTimeGlobal(lifetime.avgTime)
-	if err != nil {
-		return nil, fmt.Errorf("parsing avg time: %w", err)
+		return nil, fmt.Errorf("parsing avgTime: %q: %w", lt.avgTime, err)
 	}
 
 	return &models.User{
@@ -72,49 +48,72 @@ func parseGlobalRow(r globalLeaderboardRow) (*models.User, error) {
 		Username:       username,
 		LastActive:     lastGame,
 		Solved:         solved,
-		Attempted:      attempted,
-		AcceptanceRate: acceptanceRate,
+		Attempted:      lt.attempted,
+		AcceptanceRate: parser.AcceptanceRate(solved, lt.attempted),
 		AverageTime:    avgTime,
-		AveragePoints:  avgPoints,
+		AveragePoints:  parser.AvgPointsDivide(totalPoints, solved),
 		TotalPoints:    totalPoints,
 	}, nil
 }
 
-func getGlobalLeaderboardUsers(ctx context.Context) ([]*models.User, error) {
-	data, err := getLeaderboardText(models.GlobalLeaderboard)
+func (client *Client) getGlobalLeaderboardUsers(
+	ctx context.Context,
+) ([]*models.User, error) {
+	data, err := client.getLeaderboardText(ctx, models.GlobalLeaderboard)
 	if err != nil {
 		return nil, fmt.Errorf("getting global leaderboard text: %w", err)
 	}
 
 	users := make([]*models.User, len(data))
 
-	g, _ := errgroup.WithContext(ctx)
-	for index, row := range data {
+	g, ctx := errgroup.WithContext(ctx) // keep derived ctx so one failure cancels the rest
+	g.SetLimit(10)                      // bound concurrent profile fetches
+
+	for i, row := range data {
 		g.Go(func() error {
-			globalRow, err := row.Global()
+			gr, err := row.Global()
 			if err != nil {
 				return fmt.Errorf(
-					"adapting raw row into global: %w", err,
+					"row %d: adapting to global: %w", i, err,
 				)
 			}
 
-			user, err := parseGlobalRow(globalRow)
+			uid, err := parser.UID(gr.profileHref)
 			if err != nil {
 				return fmt.Errorf(
-					"parsing global row: %w", err,
+					"row %d: parsing href %q: %w", i, gr.profileHref, err,
 				)
 			}
 
-			users[index] = user
+			raw, err := client.getLifetimeData(ctx, uid)
+			if err != nil {
+				return fmt.Errorf(
+					"row %d: lifetime data: %w", i, err,
+				)
+			}
+
+			lt, err := raw.Lifetime()
+			if err != nil {
+				return fmt.Errorf(
+					"row %d: adapting lifetime data: %w", i, err,
+				)
+			}
+
+			user, err := parseGlobalRow(uid, gr, lt)
+			if err != nil {
+				return fmt.Errorf(
+					"row %d: %w", i, err,
+				)
+			}
+
+			users[i] = user
 			return nil
 		})
 	}
 
 	// Block until all goroutines finish
 	if err := g.Wait(); err != nil {
-		return nil, fmt.Errorf(
-			"one or more global row parses failed: %w", err,
-		)
+		return nil, fmt.Errorf("global scrape failed: %w", err)
 	}
 
 	return users, nil
