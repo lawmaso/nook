@@ -1,5 +1,20 @@
 # Nook Project Notes
 
+## Supabase
+
+### Installation
+```
+brew install supabase/tap/supabase
+supabase telemetry disable
+supabase login
+```
+
+To create + apply new migration(s):
+```
+supabase migration new <migration_name>  # create migration
+supabase migration up                    # apply migration
+```
+
 ## Local Database
 ```sh
 open -a Docker                  # ensure docker daemon is running
