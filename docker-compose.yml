@@ -10,7 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - nookdb:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./supabase/migrations/20261019030650_init_schema.sql:/docker-entrypoint-initdb.d/01-init_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U nook -d nookdb"]
       interval: 5s
