@@ -9,6 +9,10 @@ pip3 install apps/desktop/requirements.txt
 python3 -m apps.desktop.main
 ```
 
+<p align="center">
+  <img src="./assets/desktop-global.png" />
+</p>
+
 To run a live scrape of both leaderboards:
 ```sh
 go run cmd/nookscrape/main.go
