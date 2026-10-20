@@ -5,22 +5,77 @@
 package sqlcgen
 
 import (
+	"database/sql/driver"
+	"fmt"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type LeaderboardEntry struct {
-	ScrapeID int64  `json:"scrape_id"`
-	Uid      int32  `json:"uid"`
-	Data     []byte `json:"data"`
+type Leaderboard string
+
+const (
+	LeaderboardMonthly Leaderboard = "monthly"
+	LeaderboardGlobal  Leaderboard = "global"
+)
+
+func (e *Leaderboard) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Leaderboard(s)
+	case string:
+		*e = Leaderboard(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Leaderboard: %T", src)
+	}
+	return nil
 }
 
-type LeaderboardScrape struct {
-	ScrapeID        int64              `json:"scrape_id"`
-	LeaderboardKind string             `json:"leaderboard_kind"`
-	ScrapedAt       pgtype.Timestamptz `json:"scraped_at"`
+type NullLeaderboard struct {
+	Leaderboard Leaderboard `json:"leaderboard"`
+	Valid       bool        `json:"valid"` // Valid is true if Leaderboard is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullLeaderboard) Scan(value interface{}) error {
+	if value == nil {
+		ns.Leaderboard, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Leaderboard.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullLeaderboard) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Leaderboard), nil
+}
+
+type Scrape struct {
+	ScrapeID   int64              `json:"scrape_id"`
+	Kind       Leaderboard        `json:"kind"`
+	ScrapedAt  pgtype.Timestamptz `json:"scraped_at"`
+	DurationMs int32              `json:"duration_ms"`
+	Period     pgtype.Date        `json:"period"`
+}
+
+type ScrapeEntry struct {
+	ScrapeID       int64              `json:"scrape_id"`
+	Uid            int32              `json:"uid"`
+	Rank           int32              `json:"rank"`
+	TotalPoints    int32              `json:"total_points"`
+	Solved         int32              `json:"solved"`
+	Attempted      int32              `json:"attempted"`
+	AcceptanceRate float64            `json:"acceptance_rate"`
+	AvgTimeS       float64            `json:"avg_time_s"`
+	AvgPoints      float64            `json:"avg_points"`
+	LastActive     pgtype.Timestamptz `json:"last_active"`
 }
 
 type User struct {
-	Uid      int32  `json:"uid"`
-	Username string `json:"username"`
+	Uid         int32       `json:"uid"`
+	Username    string      `json:"username"`
+	MemberSince pgtype.Date `json:"member_since"`
 }
