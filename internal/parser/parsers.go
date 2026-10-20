@@ -9,14 +9,14 @@ import (
 	"time"
 )
 
-var eastern *time.Location
+var Eastern *time.Location
 
 func init() {
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
 		panic(err)
 	}
-	eastern = loc
+	Eastern = loc
 }
 
 func UID(s string) (int, error) {
@@ -54,7 +54,7 @@ func Date(s string) (time.Time, error) {
 	for _, layout := range layouts {
 		t, err := time.Parse(layout, s)
 		if err == nil {
-			return t.In(eastern), nil
+			return t.In(Eastern), nil
 		}
 
 		errs = append(errs, fmt.Errorf("layout %q: %w", layout, err))
