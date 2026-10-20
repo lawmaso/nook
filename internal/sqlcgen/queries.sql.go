@@ -12,14 +12,26 @@ import (
 )
 
 const getEntriesForScrape = `-- name: GetEntriesForScrape :many
-SELECT uid, data
-FROM leaderboard_entries
-WHERE scrape_id = $1
+SELECT e.uid, u.username, e.rank, e.total_points,
+       e.solved, e.attempted, e.acceptance_rate,
+       e.avg_time_s, e.avg_points, e.last_active
+FROM scrape_entries e
+JOIN users u USING (uid)
+WHERE e.scrape_id = $1
+ORDER BY e.rank ASC
 `
 
 type GetEntriesForScrapeRow struct {
-	Uid  int32  `json:"uid"`
-	Data []byte `json:"data"`
+	Uid            int32              `json:"uid"`
+	Username       string             `json:"username"`
+	Rank           int32              `json:"rank"`
+	TotalPoints    int32              `json:"total_points"`
+	Solved         int32              `json:"solved"`
+	Attempted      int32              `json:"attempted"`
+	AcceptanceRate float64            `json:"acceptance_rate"`
+	AvgTimeS       float64            `json:"avg_time_s"`
+	AvgPoints      float64            `json:"avg_points"`
+	LastActive     pgtype.Timestamptz `json:"last_active"`
 }
 
 func (q *Queries) GetEntriesForScrape(ctx context.Context, scrapeID int64) ([]GetEntriesForScrapeRow, error) {
@@ -31,7 +43,18 @@ func (q *Queries) GetEntriesForScrape(ctx context.Context, scrapeID int64) ([]Ge
 	var items []GetEntriesForScrapeRow
 	for rows.Next() {
 		var i GetEntriesForScrapeRow
-		if err := rows.Scan(&i.Uid, &i.Data); err != nil {
+		if err := rows.Scan(
+			&i.Uid,
+			&i.Username,
+			&i.Rank,
+			&i.TotalPoints,
+			&i.Solved,
+			&i.Attempted,
+			&i.AcceptanceRate,
+			&i.AvgTimeS,
+			&i.AvgPoints,
+			&i.LastActive,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -43,28 +66,38 @@ func (q *Queries) GetEntriesForScrape(ctx context.Context, scrapeID int64) ([]Ge
 }
 
 const getLatestScrapes = `-- name: GetLatestScrapes :many
-SELECT scrape_id, leaderboard_kind, scraped_at
-FROM leaderboard_scrapes
-WHERE leaderboard_kind = $1
+
+SELECT scrape_id, kind, scraped_at, duration_ms, period
+FROM scrapes
+WHERE kind = $1
 ORDER BY scraped_at DESC
 LIMIT $2
 `
 
 type GetLatestScrapesParams struct {
-	LeaderboardKind string `json:"leaderboard_kind"`
-	Limit           int32  `json:"limit"`
+	Kind  Leaderboard `json:"kind"`
+	Limit int32       `json:"limit"`
 }
 
-func (q *Queries) GetLatestScrapes(ctx context.Context, arg GetLatestScrapesParams) ([]LeaderboardScrape, error) {
-	rows, err := q.db.Query(ctx, getLatestScrapes, arg.LeaderboardKind, arg.Limit)
+// ------------------------
+// -- Nook API queries ----
+// ------------------------
+func (q *Queries) GetLatestScrapes(ctx context.Context, arg GetLatestScrapesParams) ([]Scrape, error) {
+	rows, err := q.db.Query(ctx, getLatestScrapes, arg.Kind, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []LeaderboardScrape
+	var items []Scrape
 	for rows.Next() {
-		var i LeaderboardScrape
-		if err := rows.Scan(&i.ScrapeID, &i.LeaderboardKind, &i.ScrapedAt); err != nil {
+		var i Scrape
+		if err := rows.Scan(
+			&i.ScrapeID,
+			&i.Kind,
+			&i.ScrapedAt,
+			&i.DurationMs,
+			&i.Period,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -73,83 +106,93 @@ func (q *Queries) GetLatestScrapes(ctx context.Context, arg GetLatestScrapesPara
 		return nil, err
 	}
 	return items, nil
-}
-
-const getScrapesInRange = `-- name: GetScrapesInRange :many
-SELECT scrape_id, leaderboard_kind, scraped_at
-FROM leaderboard_scrapes
-WHERE leaderboard_kind = $1
-    AND scraped_at BETWEEN $2 and $3
-ORDER BY scraped_at ASC
-`
-
-type GetScrapesInRangeParams struct {
-	LeaderboardKind string             `json:"leaderboard_kind"`
-	ScrapedAt       pgtype.Timestamptz `json:"scraped_at"`
-	ScrapedAt_2     pgtype.Timestamptz `json:"scraped_at_2"`
-}
-
-func (q *Queries) GetScrapesInRange(ctx context.Context, arg GetScrapesInRangeParams) ([]LeaderboardScrape, error) {
-	rows, err := q.db.Query(ctx, getScrapesInRange, arg.LeaderboardKind, arg.ScrapedAt, arg.ScrapedAt_2)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []LeaderboardScrape
-	for rows.Next() {
-		var i LeaderboardScrape
-		if err := rows.Scan(&i.ScrapeID, &i.LeaderboardKind, &i.ScrapedAt); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const insertEntry = `-- name: InsertEntry :exec
-INSERT INTO leaderboard_entries (scrape_id, uid, data)
-VALUES ($1, $2, $3)
-`
-
-type InsertEntryParams struct {
-	ScrapeID int64  `json:"scrape_id"`
-	Uid      int32  `json:"uid"`
-	Data     []byte `json:"data"`
-}
-
-func (q *Queries) InsertEntry(ctx context.Context, arg InsertEntryParams) error {
-	_, err := q.db.Exec(ctx, insertEntry, arg.ScrapeID, arg.Uid, arg.Data)
-	return err
 }
 
 const insertScrape = `-- name: InsertScrape :one
-INSERT INTO leaderboard_scrapes (leaderboard_kind, scraped_at)
-VALUES ($1, now())
+INSERT INTO scrapes (kind, scraped_at, duration_ms, period)
+VALUES ($1, $2, $3, $4)
 RETURNING scrape_id
 `
 
-func (q *Queries) InsertScrape(ctx context.Context, leaderboardKind string) (int64, error) {
-	row := q.db.QueryRow(ctx, insertScrape, leaderboardKind)
+type InsertScrapeParams struct {
+	Kind       Leaderboard        `json:"kind"`
+	ScrapedAt  pgtype.Timestamptz `json:"scraped_at"`
+	DurationMs int32              `json:"duration_ms"`
+	Period     pgtype.Date        `json:"period"`
+}
+
+func (q *Queries) InsertScrape(ctx context.Context, arg InsertScrapeParams) (int64, error) {
+	row := q.db.QueryRow(ctx, insertScrape,
+		arg.Kind,
+		arg.ScrapedAt,
+		arg.DurationMs,
+		arg.Period,
+	)
 	var scrape_id int64
 	err := row.Scan(&scrape_id)
 	return scrape_id, err
 }
 
+const insertScrapeEntry = `-- name: InsertScrapeEntry :exec
+INSERT INTO scrape_entries (
+    scrape_id, uid, rank, total_points,
+    solved, attempted, acceptance_rate,
+    avg_time_s, avg_points, last_active
+) VALUES (
+    $1, $2, $3, $4,
+    $5, $6, $7,
+    $8, $9, $10
+)
+`
+
+type InsertScrapeEntryParams struct {
+	ScrapeID       int64              `json:"scrape_id"`
+	Uid            int32              `json:"uid"`
+	Rank           int32              `json:"rank"`
+	TotalPoints    int32              `json:"total_points"`
+	Solved         int32              `json:"solved"`
+	Attempted      int32              `json:"attempted"`
+	AcceptanceRate float64            `json:"acceptance_rate"`
+	AvgTimeS       float64            `json:"avg_time_s"`
+	AvgPoints      float64            `json:"avg_points"`
+	LastActive     pgtype.Timestamptz `json:"last_active"`
+}
+
+func (q *Queries) InsertScrapeEntry(ctx context.Context, arg InsertScrapeEntryParams) error {
+	_, err := q.db.Exec(ctx, insertScrapeEntry,
+		arg.ScrapeID,
+		arg.Uid,
+		arg.Rank,
+		arg.TotalPoints,
+		arg.Solved,
+		arg.Attempted,
+		arg.AcceptanceRate,
+		arg.AvgTimeS,
+		arg.AvgPoints,
+		arg.LastActive,
+	)
+	return err
+}
+
 const upsertUser = `-- name: UpsertUser :exec
-INSERT INTO users (uid, username)
-VALUES ($1, $2)
-ON CONFLICT (uid) DO UPDATE SET username = EXCLUDED.username
+
+INSERT INTO users (uid, username, member_since)
+VALUES ($1, $2, $3)
+ON CONFLICT (uid) DO UPDATE SET
+    username = EXCLUDED.username,
+    member_since = COALESCE(EXCLUDED.member_since, users.member_since)
 `
 
 type UpsertUserParams struct {
-	Uid      int32  `json:"uid"`
-	Username string `json:"username"`
+	Uid         int32       `json:"uid"`
+	Username    string      `json:"username"`
+	MemberSince pgtype.Date `json:"member_since"`
 }
 
+// ---------------------------
+// -- Nook Daemon queries ----
+// ---------------------------
 func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) error {
-	_, err := q.db.Exec(ctx, upsertUser, arg.Uid, arg.Username)
+	_, err := q.db.Exec(ctx, upsertUser, arg.Uid, arg.Username, arg.MemberSince)
 	return err
 }
