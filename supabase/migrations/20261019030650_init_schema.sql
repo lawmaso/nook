@@ -14,7 +14,7 @@ CREATE TABLE scrapes (
     period      DATE,  -- first day of month (ET); NULL for global scrapes
 
     CONSTRAINT scrape_period_matches_kind CHECK (
-        (kind = 'monthly' AND period is NOT NULL AND EXTRACT(DAY FROM DATE) = 1) OR
+        (kind = 'monthly' AND period is NOT NULL AND EXTRACT(DAY FROM period) = 1) OR
         (kind = 'global'  AND period is NULL)
     )
 );
