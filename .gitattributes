@@ -1,0 +1,6 @@
+*.py -linguist-detectable
+*.js -linguist-detectable
+*.ts -linguist-detectable
+**/*.ts -linguist-detectable
+*.tsx -linguist-detectable
+**/*.tsx -linguist-detectable
