@@ -1,7 +1,51 @@
 package main
 
-import "os"
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"nook/internal/daemon"
+	"nook/internal/scraper"
+	"nook/internal/store"
+)
 
 func main() {
-	os.Exit(0)
+	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	if err := run(log); err != nil && !errors.Is(err, context.Canceled) {
+		log.Error("fatal", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run(log *slog.Logger) error {
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+	defer stop()
+
+	dbURL := os.Getenv("DATABASE_URL")
+	fmt.Printf("db: %q\n", dbURL)
+
+	pool, err := pgxpool.New(ctx, dbURL)
+	if err != nil {
+		return fmt.Errorf("connect db: %w", err)
+	}
+	defer pool.Close()
+
+	daemon := daemon.New(
+		scraper.NewClient(),
+		store.New(pool),
+		daemon.DefaultConfig(),
+		log,
+	)
+	return daemon.Run(ctx)
 }
