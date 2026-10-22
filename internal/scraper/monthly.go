@@ -88,7 +88,7 @@ func (client *Client) getMonthlyLeaderboardUsers(ctx context.Context) ([]*models
 	for i, row := range data {
 		mr, err := row.Monthly()
 		if err != nil {
-			return nil, fmt.Errorf("row %d: adapting to monthly", i, err)
+			return nil, fmt.Errorf("row %d: adapting to monthly: %w", i, err)
 		}
 
 		user, err := parseMonthRow(mr)

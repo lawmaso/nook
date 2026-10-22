@@ -60,7 +60,6 @@ func (client *Client) get(
 	ctx context.Context,
 	url string,
 ) (*goquery.Document, error) {
-
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("building request for %q: %w", url, err)
