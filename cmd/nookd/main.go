@@ -33,7 +33,6 @@ func run(log *slog.Logger) error {
 	defer stop()
 
 	dbURL := os.Getenv("DATABASE_URL")
-	fmt.Printf("db: %q\n", dbURL)
 
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
@@ -41,11 +40,11 @@ func run(log *slog.Logger) error {
 	}
 	defer pool.Close()
 
-	daemon := daemon.New(
+	d := daemon.New(
 		scraper.NewClient(),
 		store.New(pool),
 		daemon.DefaultConfig(),
 		log,
 	)
-	return daemon.Run(ctx)
+	return d.Run(ctx)
 }
