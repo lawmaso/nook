@@ -56,6 +56,7 @@ type User struct {
 	AverageTime    float64
 	AveragePoints  float64
 	TotalPoints    int
+	MemberSince    time.Time
 }
 
 func (u *User) String() string {
@@ -67,16 +68,24 @@ func (u *User) String() string {
 }
 
 func (u *User) DetailedString() string {
-	lastActive := "never"
-	if !u.LastActive.IsZero() {
-		// lastActive = u.LastActive.Format("2006-01-02 15:04:05")
-		lastActive = u.LastActive.Format("2006-01-02")
+	lastActive, memberSince := "never", "unknown"
+	for _, item := range []struct {
+		ptr *string
+		t   time.Time
+	}{
+		{&lastActive, u.LastActive},
+		{&memberSince, u.MemberSince},
+	} {
+		if !item.t.IsZero() {
+			*item.ptr = item.t.Format("2006-01-01")
+		}
 	}
 
+	since := fmt.Sprintf("MemberSince: %-11s", memberSince)
 	uid := fmt.Sprintf("UID: %-6d", u.UID)
 	rank := fmt.Sprintf("Rank: %-4d", u.Rank)
 	username := fmt.Sprintf("@%-25s", u.Username)
-	last := fmt.Sprintf("LastActive: %-11s", lastActive)
+	last := fmt.Sprintf("LastActive: %-10s", lastActive)
 
 	fraction := fmt.Sprintf("%d/%d", u.Solved, u.Attempted)
 	solved := fmt.Sprintf("Solved: %-12s", fraction)
@@ -90,7 +99,7 @@ func (u *User) DetailedString() string {
 	total := fmt.Sprintf("TotalPoints: %-6d", u.TotalPoints)
 
 	return fmt.Sprintf(
-		"User{%s %s %s %s %s %s %s %s %s}",
-		uid, rank, username, last, solved, rate, avgTime, avgPts, total,
+		"User{%s %s %s %s %s %s %s %s %s %s}",
+		uid, since, rank, username, last, solved, rate, avgTime, avgPts, total,
 	)
 }

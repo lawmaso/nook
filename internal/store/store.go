@@ -55,8 +55,9 @@ func (st *Store) SaveScrape(
 
 	for _, u := range sorted {
 		if err := qtx.UpsertUser(ctx, sqlcgen.UpsertUserParams{
-			Uid:      int32(u.UID),
-			Username: u.Username,
+			Uid:         int32(u.UID),
+			Username:    u.Username,
+			MemberSince: memberSince(u.MemberSince),
 		}); err != nil {
 			return fmt.Errorf("upsert user %q: %w", u.Username, err)
 		}
@@ -78,6 +79,17 @@ func (st *Store) SaveScrape(
 	}
 
 	return tx.Commit(ctx)
+}
+
+func memberSince(t time.Time) pgtype.Date {
+	if t.IsZero() {
+		return pgtype.Date{Valid: false} // NULL since false
+	}
+
+	return pgtype.Date{
+		Time:  time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC),
+		Valid: true,
+	}
 }
 
 func scrapePeriod(lb models.Leaderboard, scrapedAt time.Time) pgtype.Date {

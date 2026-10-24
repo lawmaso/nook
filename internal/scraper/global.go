@@ -32,6 +32,11 @@ func parseGlobalRow(
 		return nil, fmt.Errorf("parsing totalPoints %q: %w", r.totalPoints, err)
 	}
 
+	memberSince, err := parser.Date(lt.memberSince)
+	if err != nil {
+		return nil, fmt.Errorf("parsing memberSince %q: %w", lt.memberSince, err)
+	}
+
 	solved, err := parser.Count(lt.solved)
 	if err != nil {
 		return nil, fmt.Errorf("parsing solved %q: %w", lt.solved, err)
@@ -53,6 +58,7 @@ func parseGlobalRow(
 		AverageTime:    avgTime,
 		AveragePoints:  parser.AvgPointsDivide(totalPoints, solved),
 		TotalPoints:    totalPoints,
+		MemberSince:    memberSince,
 	}, nil
 }
 
