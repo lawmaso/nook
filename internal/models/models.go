@@ -77,7 +77,7 @@ func (u *User) DetailedString() string {
 		{&memberSince, u.MemberSince},
 	} {
 		if !item.t.IsZero() {
-			*item.ptr = item.t.Format("2006-01-01")
+			*item.ptr = item.t.Format("2006-01-02")
 		}
 	}
 
