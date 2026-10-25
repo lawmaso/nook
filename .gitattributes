@@ -1,6 +1,10 @@
-*.py -linguist-detectable
-*.js -linguist-detectable
-*.ts -linguist-detectable
-**/*.ts -linguist-detectable
-*.tsx -linguist-detectable
-**/*.tsx -linguist-detectable
+*.py      linguist-detectable=false
+*.js      linguist-detectable=false
+*.ts      linguist-detectable=false
+**/*.ts   linguist-detectable=false
+*.tsx     linguist-detectable=false
+**/*.tsx  linguist-detectable=false
+*.html    linguist-detectable=false
+**/*.html linguist-detectable=false
+*.css     linguist-detectable=false
+**/*.css  linguist-detectable=false
