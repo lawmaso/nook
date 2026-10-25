@@ -32,7 +32,7 @@ func (client *Client) GetLeaderboardUsers(
 	ctx context.Context,
 	lb models.Leaderboard,
 ) ([]*models.User, *ScrapeStats, error) {
-	start := time.Now()
+	start := time.Now() // non-wall time; no need to convert to site location
 
 	var (
 		users []*models.User

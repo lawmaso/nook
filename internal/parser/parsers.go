@@ -7,17 +7,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"nook/internal/models"
 )
-
-var Eastern *time.Location
-
-func init() {
-	loc, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		panic(err)
-	}
-	Eastern = loc
-}
 
 func UID(s string) (int, error) {
 	sep := "?u="
@@ -45,6 +37,7 @@ func Rank(s string) (int, error) {
 }
 
 func Date(s string) (time.Time, error) {
+	s = strings.TrimSpace(s)
 	layouts := []string{
 		"January 2, 2006, 3:04 pm", // monthly leaderboard format
 		"January 2, 2006",          // global leaderboard format
@@ -52,9 +45,11 @@ func Date(s string) (time.Time, error) {
 
 	var errs []error
 	for _, layout := range layouts {
-		t, err := time.Parse(layout, s)
+		// NOTE: parse in location since the passed string
+		// is already in the site's location (ET)
+		t, err := time.ParseInLocation(layout, s, models.SiteLocation)
 		if err == nil {
-			return t.In(Eastern), nil
+			return t, nil
 		}
 
 		errs = append(errs, fmt.Errorf("layout %q: %w", layout, err))

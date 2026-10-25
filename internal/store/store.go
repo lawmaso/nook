@@ -10,7 +10,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"nook/internal/models"
-	"nook/internal/parser"
 	"nook/internal/scraper"
 	"nook/internal/sqlcgen"
 )
@@ -81,25 +80,24 @@ func (st *Store) SaveScrape(
 	return tx.Commit(ctx)
 }
 
+func scrapePeriod(lb models.Leaderboard, scrapedAt time.Time) pgtype.Date {
+	if lb != models.MonthlyLeaderboard {
+		return pgtype.Date{Valid: false} // NULL since false
+	}
+
+	return pgtype.Date{
+		Time:  models.MonthStart(scrapedAt),
+		Valid: true,
+	}
+}
+
 func memberSince(t time.Time) pgtype.Date {
 	if t.IsZero() {
 		return pgtype.Date{Valid: false} // NULL since false
 	}
 
 	return pgtype.Date{
-		Time:  time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC),
-		Valid: true,
-	}
-}
-
-func scrapePeriod(lb models.Leaderboard, scrapedAt time.Time) pgtype.Date {
-	if lb != models.MonthlyLeaderboard {
-		return pgtype.Date{}
-	}
-
-	t := scrapedAt.In(parser.Eastern)
-	return pgtype.Date{
-		Time:  time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC),
+		Time:  models.DayStart(t),
 		Valid: true,
 	}
 }
