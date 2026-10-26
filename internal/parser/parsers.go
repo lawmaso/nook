@@ -158,7 +158,7 @@ func AvgTimeClock(s string) (float64, error) {
 		secs = 60*secs + n
 	}
 
-	return math.Round(float64(secs)/60*100) / 100, nil
+	return float64(secs), nil
 }
 
 func AvgPointsDivide(total, solved int) float64 {
