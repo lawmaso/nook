@@ -33,7 +33,13 @@ func Rank(s string) (int, error) {
 			"seperator %q not found in %q", sep, s,
 		)
 	}
-	return strconv.Atoi(rankStr)
+
+	rank, err := strconv.Atoi(rankStr)
+	if err != nil {
+		return -1, fmt.Errorf("invalid rank string %q: %w", rankStr, err)
+	}
+
+	return rank, nil
 }
 
 func Date(s string) (time.Time, error) {
