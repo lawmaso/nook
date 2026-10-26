@@ -38,10 +38,7 @@ func Rank(s string) (int, error) {
 
 func Date(s string) (time.Time, error) {
 	s = strings.TrimSpace(s)
-	layouts := []string{
-		"January 2, 2006, 3:04 pm", // monthly leaderboard format
-		"January 2, 2006",          // global leaderboard format
-	}
+	layouts := []string{models.MonthDateLayout, models.GlobalDateLayout}
 
 	var errs []error
 	for _, layout := range layouts {

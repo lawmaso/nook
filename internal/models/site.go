@@ -4,6 +4,11 @@ import "time"
 
 var SiteLocation *time.Location
 
+const (
+	MonthDateLayout  = "January 2, 2006, 3:04 pm" // monthly leaderboard format
+	GlobalDateLayout = "January 2, 2006"          // global leaderboard format
+)
+
 func init() {
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
