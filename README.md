@@ -15,7 +15,7 @@ python3 -m apps.desktop.main
 
 To run a live scrape of both leaderboards:
 ```sh
-go run cmd/nookscrape/main.go
+go run cmd/scrape/main.go
 
 ---- MonthlyLeaderboard (100 users, 633ms)
   1 @airmaso                          753784 pts  
