@@ -5,7 +5,7 @@ To run the desktop application:
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
-pip3 install apps/desktop/requirements.txt
+pip3 install -r apps/desktop/requirements.txt
 python3 -m apps.desktop.main
 ```
 
