@@ -11,27 +11,27 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-type ScrapeStats struct {
-	ScrapedAt  time.Time
-	ScrapeTime time.Duration
+type Stats struct {
+	At       time.Time     // when the scrape was initiated
+	Duration time.Duration // how long the scrape took
 }
 
 type Client struct {
-	http    *http.Client
-	timeout time.Duration
+	http    *http.Client  // reusable http client; go supports pooling
+	timeout time.Duration // max time allowed per scrape
 }
 
 func NewClient() *Client {
 	return &Client{
-		http: &http.Client{Timeout: 8 * time.Second}, // per request
+		http: &http.Client{Timeout: 8 * time.Second},
 	}
 }
 
 // Returns all users on a leaderboard
-func (client *Client) GetLeaderboardUsers(
+func (client *Client) ScrapeUsers(
 	ctx context.Context,
 	lb models.Leaderboard,
-) ([]*models.User, *ScrapeStats, error) {
+) ([]*models.User, *Stats, error) {
 	start := time.Now() // non-wall time; no need to convert to site location
 
 	var (
@@ -45,9 +45,9 @@ func (client *Client) GetLeaderboardUsers(
 		users, err = client.getGlobalLeaderboardUsers(ctx)
 	}
 
-	stats := &ScrapeStats{
-		ScrapedAt:  start,
-		ScrapeTime: time.Since(start),
+	stats := &Stats{
+		At:       start,
+		Duration: time.Since(start),
 	}
 	if err != nil {
 		return nil, stats, err

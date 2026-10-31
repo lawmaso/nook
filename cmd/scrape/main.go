@@ -47,7 +47,7 @@ func main() {
 		fmt.Printf(
 			"---- %v (%d users, %s)\n",
 			lb, len(users),
-			stats.ScrapeTime.Round(time.Millisecond),
+			stats.Duration.Round(time.Millisecond),
 		)
 
 		for _, user := range users {
@@ -72,8 +72,8 @@ func scrapeOne(
 	client *scraper.Client,
 	lb models.Leaderboard,
 	timeout time.Duration,
-) ([]*models.User, *scraper.ScrapeStats, error) {
+) ([]*models.User, *scraper.Stats, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	return client.GetLeaderboardUsers(ctx, lb)
+	return client.ScrapeUsers(ctx, lb)
 }

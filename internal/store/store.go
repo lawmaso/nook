@@ -23,12 +23,12 @@ func New(pool *pgxpool.Pool) *Store {
 	return &Store{pool, sqlcgen.New(pool)}
 }
 
-// Persist a single scrape cycle
-func (st *Store) SaveScrape(
+// Persists a single leaderboard scrape
+func (st *Store) PersistScrape(
 	ctx context.Context,
 	lb models.Leaderboard,
 	users []*models.User,
-	stats *scraper.ScrapeStats,
+	stats *scraper.Stats,
 ) error {
 	tx, err := st.pool.Begin(ctx)
 	if err != nil {
@@ -40,9 +40,9 @@ func (st *Store) SaveScrape(
 
 	scrapeID, err := qtx.InsertScrape(ctx, sqlcgen.InsertScrapeParams{
 		Kind:       sqlcgen.Leaderboard((lb.DBKind())),
-		ScrapedAt:  pgtype.Timestamptz{Time: stats.ScrapedAt, Valid: true},
-		DurationMs: int32(stats.ScrapeTime.Milliseconds()),
-		Period:     scrapePeriod(lb, stats.ScrapedAt),
+		ScrapedAt:  pgtype.Timestamptz{Time: stats.At, Valid: true},
+		DurationMs: int32(stats.Duration.Milliseconds()),
+		Period:     scrapePeriod(lb, stats.At),
 	})
 	if err != nil {
 		return fmt.Errorf("insert scrape: %w", err)

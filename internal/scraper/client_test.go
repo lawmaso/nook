@@ -168,7 +168,7 @@ func TestGetLeaderboardUsers_ReturnsStatsOnFail(t *testing.T) {
 		models.GlobalLeaderboard,
 	} {
 		t.Run(lb.DBKind()+"_stats", func(t *testing.T) {
-			users, stats, err := c.GetLeaderboardUsers(t.Context(), lb)
+			users, stats, err := c.ScrapeUsers(t.Context(), lb)
 
 			if err == nil {
 				t.Fatal("expected err, got nil")
@@ -182,7 +182,7 @@ func TestGetLeaderboardUsers_ReturnsStatsOnFail(t *testing.T) {
 				t.Fatal("stats should be returned on err")
 			}
 
-			if stats.ScrapedAt.IsZero() {
+			if stats.At.IsZero() {
 				t.Error("stats.ScrapedAt should be set")
 			}
 		})
@@ -199,7 +199,7 @@ func TestGetLeaderboardUsers_DispatchesByLeaderboard(t *testing.T) {
 		})},
 	})
 
-	users, stats, err := c.GetLeaderboardUsers(context.Background(), models.MonthlyLeaderboard)
+	users, stats, err := c.ScrapeUsers(context.Background(), models.MonthlyLeaderboard)
 	if err != nil {
 		t.Fatalf("monthly: unexpected err: %v", err)
 	}
@@ -208,7 +208,7 @@ func TestGetLeaderboardUsers_DispatchesByLeaderboard(t *testing.T) {
 		t.Fatalf("monthly: got %d users, stats=%v", n, stats)
 	}
 
-	if _, _, err := c.GetLeaderboardUsers(
+	if _, _, err := c.ScrapeUsers(
 		context.Background(), models.GlobalLeaderboard,
 	); err == nil {
 		t.Fatalf("global: expected err because only monthly url is served")

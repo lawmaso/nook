@@ -11,18 +11,18 @@ import (
 )
 
 type Scraper interface {
-	GetLeaderboardUsers(
+	ScrapeUsers(
 		ctx context.Context,
 		lb models.Leaderboard,
-	) ([]*models.User, *scraper.ScrapeStats, error)
+	) ([]*models.User, *scraper.Stats, error)
 }
 
 type Store interface {
-	SaveScrape(
+	PersistScrape(
 		ctx context.Context,
 		lb models.Leaderboard,
 		users []*models.User,
-		stats *scraper.ScrapeStats,
+		stats *scraper.Stats,
 	) error
 }
 
@@ -68,29 +68,29 @@ type Daemon struct {
 }
 
 func New(
-	scraper Scraper,
-	store Store,
+	sc Scraper,
+	st Store,
 	cfg Config,
 	log *slog.Logger,
 ) *Daemon {
 	return &Daemon{
-		scraper: scraper,
-		store:   store,
+		scraper: sc,
+		store:   st,
 		cfg:     cfg,
 		log:     log,
 	}
 }
 
-func (daemon *Daemon) Run(ctx context.Context) error {
+func (d *Daemon) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
-	for _, job := range daemon.cfg.Jobs {
-		wg.Go(func() { daemon.runJob(ctx, job) })
+	for _, job := range d.cfg.Jobs {
+		wg.Go(func() { d.runJob(ctx, job) })
 	}
 	wg.Wait()
 	return ctx.Err()
 }
 
-func (daemon *Daemon) runJob(ctx context.Context, job Job) {
+func (d *Daemon) runJob(ctx context.Context, job Job) {
 	t := time.NewTimer(0) // run first cycle immediately
 	defer t.Stop()
 
@@ -99,28 +99,28 @@ func (daemon *Daemon) runJob(ctx context.Context, job Job) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			daemon.cycle(ctx, job)
+			d.cycle(ctx, job)
 			t.Reset(job.Interval)
 		}
 	}
 }
 
-func (daemon *Daemon) cycle(ctx context.Context, job Job) {
+func (d *Daemon) cycle(ctx context.Context, job Job) {
 	kind := job.Leaderboard.DBKind()
-	log := daemon.log.With("leaderboard", kind)
+	log := d.log.With("leaderboard", kind)
 
 	var (
 		users []*models.User
-		stats *scraper.ScrapeStats
+		stats *scraper.Stats
 	)
 
 	// Scrape leaderboard users (with retry)
-	err := retry(ctx, daemon.cfg.Backoff, log, "scrape", func(ctx context.Context) error {
+	err := retry(ctx, d.cfg.Backoff, log, "scrape", func(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(ctx, job.Timeout)
 		defer cancel()
 
 		var err error
-		users, stats, err = daemon.scraper.GetLeaderboardUsers(
+		users, stats, err = d.scraper.ScrapeUsers(
 			ctx, job.Leaderboard,
 		)
 		return err
@@ -131,8 +131,8 @@ func (daemon *Daemon) cycle(ctx context.Context, job Job) {
 	}
 
 	// Persist scrape using the store (with retry)
-	err = retry(ctx, daemon.cfg.Backoff, log, "persist", func(ctx context.Context) error {
-		return daemon.store.SaveScrape(ctx, job.Leaderboard, users, stats)
+	err = retry(ctx, d.cfg.Backoff, log, "persist", func(ctx context.Context) error {
+		return d.store.PersistScrape(ctx, job.Leaderboard, users, stats)
 	})
 	if err != nil {
 		log.Error("cycle failed", "err", err)
@@ -141,6 +141,6 @@ func (daemon *Daemon) cycle(ctx context.Context, job Job) {
 
 	log.Info(
 		"cycle complete", "users", len(users),
-		"scrape_time", stats.ScrapeTime,
+		"scrape_time", stats.Duration,
 	)
 }

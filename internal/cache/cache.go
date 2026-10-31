@@ -13,7 +13,7 @@ import (
 type CachedLeaderboard struct {
 	Prev  []*models.User
 	Curr  []*models.User
-	Stats *scraper.ScrapeStats
+	Stats *scraper.Stats
 }
 
 // The main interface for the leaderboard cache
@@ -62,7 +62,7 @@ func (cache *LeaderboardCache) Refresh(lb models.Leaderboard) error {
 
 	// NOTE: Allow the scrape to occur outside the lock since
 	// we don't want the network call holding a write lock (and blocking readers)
-	users, stats, err := cache.scraper.GetLeaderboardUsers(ctx, lb)
+	users, stats, err := cache.scraper.ScrapeUsers(ctx, lb)
 	if err != nil {
 		return fmt.Errorf("cache refresh failed")
 	}
