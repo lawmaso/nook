@@ -52,7 +52,11 @@ func (st *Store) PersistScrape(
 	copy(sorted, users)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].UID < sorted[j].UID })
 
-	for _, u := range sorted {
+	for i, u := range sorted {
+		if i > 0 && u.UID == sorted[i-1].UID {
+			return fmt.Errorf("duplicate uid: %d", u.UID)
+		}
+
 		if err := qtx.UpsertUser(ctx, sqlcgen.UpsertUserParams{
 			Uid:         int32(u.UID),
 			Username:    u.Username,
