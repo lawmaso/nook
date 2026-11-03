@@ -19,6 +19,8 @@ type Store struct {
 	q    *sqlcgen.Queries // type-safe queries
 }
 
+type Attempts struct{ Scrape, Persist int }
+
 func New(pool *pgxpool.Pool) *Store {
 	return &Store{pool, sqlcgen.New(pool)}
 }
@@ -29,6 +31,7 @@ func (st *Store) PersistScrape(
 	lb models.Leaderboard,
 	users []*models.User,
 	stats *scraper.Stats,
+	attempts Attempts,
 ) error {
 	tx, err := st.pool.Begin(ctx)
 	if err != nil {
@@ -39,10 +42,12 @@ func (st *Store) PersistScrape(
 	qtx := st.q.WithTx(tx)
 
 	scrapeID, err := qtx.InsertScrape(ctx, sqlcgen.InsertScrapeParams{
-		Kind:       sqlcgen.Leaderboard((lb.DBKind())),
-		ScrapedAt:  pgtype.Timestamptz{Time: stats.At, Valid: true},
-		DurationMs: int32(stats.Duration.Milliseconds()),
-		Period:     scrapePeriod(lb, stats.At),
+		Kind:            sqlcgen.Leaderboard((lb.DBKind())),
+		Period:          scrapePeriod(lb, stats.At),
+		ScrapedAt:       pgtype.Timestamptz{Time: stats.At, Valid: true},
+		DurationMs:      int32(stats.Duration.Milliseconds()),
+		ScrapeAttempts:  int32(attempts.Scrape),
+		PersistAttempts: int32(attempts.Persist),
 	})
 	if err != nil {
 		return fmt.Errorf("insert scrape: %w", err)
@@ -82,6 +87,23 @@ func (st *Store) PersistScrape(
 	}
 
 	return tx.Commit(ctx)
+}
+
+func (st *Store) PersistScrapeFailure(
+	ctx context.Context,
+	lb models.Leaderboard,
+	stage string,
+	attempts Attempts,
+	cause error,
+) error {
+	return st.q.InsertScrapeFailure(ctx, sqlcgen.InsertScrapeFailureParams{
+		Kind:            sqlcgen.Leaderboard(lb.DBKind()),
+		Stage:           sqlcgen.ScrapeStage(stage),
+		FailedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		ScrapeAttempts:  int32(attempts.Scrape),
+		PersistAttempts: int32(attempts.Persist),
+		Error:           cause.Error(),
+	})
 }
 
 func scrapePeriod(lb models.Leaderboard, scrapedAt time.Time) pgtype.Date {

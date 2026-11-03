@@ -8,6 +8,7 @@ import (
 
 	"nook/internal/models"
 	"nook/internal/scraper"
+	"nook/internal/store"
 )
 
 type Scraper interface {
@@ -23,6 +24,15 @@ type Store interface {
 		lb models.Leaderboard,
 		users []*models.User,
 		stats *scraper.Stats,
+		attempts store.Attempts,
+	) error
+
+	PersistScrapeFailure(
+		ctx context.Context,
+		lb models.Leaderboard,
+		stage string,
+		attempts store.Attempts,
+		cause error,
 	) error
 }
 
@@ -110,12 +120,14 @@ func (d *Daemon) cycle(ctx context.Context, job Job) {
 	log := d.log.With("leaderboard", kind)
 
 	var (
-		users []*models.User
-		stats *scraper.Stats
+		users    []*models.User
+		stats    *scraper.Stats
+		attempts store.Attempts
 	)
 
 	// Scrape leaderboard users (with retry)
 	err := retry(ctx, d.cfg.Backoff, log, "scrape", func(ctx context.Context) error {
+		attempts.Scrape++
 		ctx, cancel := context.WithTimeout(ctx, job.Timeout)
 		defer cancel()
 
@@ -126,16 +138,17 @@ func (d *Daemon) cycle(ctx context.Context, job Job) {
 		return err
 	})
 	if err != nil {
-		log.Error("cycle failed", "err", err)
+		d.persistFailure(ctx, job, "scrape", attempts, err, log)
 		return
 	}
 
 	// Persist scrape using the store (with retry)
 	err = retry(ctx, d.cfg.Backoff, log, "persist", func(ctx context.Context) error {
-		return d.store.PersistScrape(ctx, job.Leaderboard, users, stats)
+		attempts.Persist++
+		return d.store.PersistScrape(ctx, job.Leaderboard, users, stats, attempts)
 	})
 	if err != nil {
-		log.Error("cycle failed", "err", err)
+		d.persistFailure(ctx, job, "persist", attempts, err, log)
 		return
 	}
 
@@ -143,4 +156,28 @@ func (d *Daemon) cycle(ctx context.Context, job Job) {
 		"cycle complete", "users", len(users),
 		"scrape_time", stats.Duration,
 	)
+}
+
+func (d *Daemon) persistFailure(
+	ctx context.Context,
+	job Job,
+	stage string,
+	att store.Attempts,
+	cause error,
+	log *slog.Logger,
+) {
+	log.Error("cycle failed", "stage", stage, "err", cause)
+
+	// NOTE: use a fresh ctx since the original ctx may be the reason for failure
+	rctx, cancel := context.WithTimeout(
+		context.WithoutCancel(ctx),
+		5*time.Second,
+	)
+	defer cancel()
+
+	if err := d.store.PersistScrapeFailure(
+		rctx, job.Leaderboard, stage, att, cause,
+	); err != nil {
+		log.Error("persist failure", "err", err)
+	}
 }
