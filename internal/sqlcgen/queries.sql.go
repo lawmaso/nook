@@ -25,18 +25,26 @@ type GetLatestScrapesParams struct {
 	Limit int32       `json:"limit"`
 }
 
+type GetLatestScrapesRow struct {
+	ScrapeID   int64              `json:"scrape_id"`
+	Kind       Leaderboard        `json:"kind"`
+	ScrapedAt  pgtype.Timestamptz `json:"scraped_at"`
+	DurationMs int32              `json:"duration_ms"`
+	Period     pgtype.Date        `json:"period"`
+}
+
 // ------------------------
 // -- Nook API queries ----
 // ------------------------
-func (q *Queries) GetLatestScrapes(ctx context.Context, arg GetLatestScrapesParams) ([]Scrape, error) {
+func (q *Queries) GetLatestScrapes(ctx context.Context, arg GetLatestScrapesParams) ([]GetLatestScrapesRow, error) {
 	rows, err := q.db.Query(ctx, getLatestScrapes, arg.Kind, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Scrape
+	var items []GetLatestScrapesRow
 	for rows.Next() {
-		var i Scrape
+		var i GetLatestScrapesRow
 		if err := rows.Scan(
 			&i.ScrapeID,
 			&i.Kind,
@@ -109,24 +117,35 @@ func (q *Queries) GetScrapeEntries(ctx context.Context, scrapeID int64) ([]GetSc
 }
 
 const insertScrape = `-- name: InsertScrape :one
-INSERT INTO scrapes (kind, scraped_at, duration_ms, period)
-VALUES ($1, $2, $3, $4)
+INSERT INTO scrapes (
+    kind, period,
+    scraped_at, duration_ms,
+    scrape_attempts, persist_attempts
+) VALUES (
+    $1, $2,
+    $3, $4,
+    $5, $6
+)
 RETURNING scrape_id
 `
 
 type InsertScrapeParams struct {
-	Kind       Leaderboard        `json:"kind"`
-	ScrapedAt  pgtype.Timestamptz `json:"scraped_at"`
-	DurationMs int32              `json:"duration_ms"`
-	Period     pgtype.Date        `json:"period"`
+	Kind            Leaderboard        `json:"kind"`
+	Period          pgtype.Date        `json:"period"`
+	ScrapedAt       pgtype.Timestamptz `json:"scraped_at"`
+	DurationMs      int32              `json:"duration_ms"`
+	ScrapeAttempts  int32              `json:"scrape_attempts"`
+	PersistAttempts int32              `json:"persist_attempts"`
 }
 
 func (q *Queries) InsertScrape(ctx context.Context, arg InsertScrapeParams) (int64, error) {
 	row := q.db.QueryRow(ctx, insertScrape,
 		arg.Kind,
+		arg.Period,
 		arg.ScrapedAt,
 		arg.DurationMs,
-		arg.Period,
+		arg.ScrapeAttempts,
+		arg.PersistAttempts,
 	)
 	var scrape_id int64
 	err := row.Scan(&scrape_id)
@@ -172,6 +191,76 @@ func (q *Queries) InsertScrapeEntry(ctx context.Context, arg InsertScrapeEntryPa
 		arg.LastActive,
 	)
 	return err
+}
+
+const insertScrapeFailure = `-- name: InsertScrapeFailure :exec
+INSERT INTO scrape_failures (
+    kind, stage, failed_at,
+    scrape_attempts, persist_attempts,
+    error
+) VALUES (
+    $1, $2, $3,
+    $4, $5,
+    $6
+)
+`
+
+type InsertScrapeFailureParams struct {
+	Kind            Leaderboard        `json:"kind"`
+	Stage           ScrapeStage        `json:"stage"`
+	FailedAt        pgtype.Timestamptz `json:"failed_at"`
+	ScrapeAttempts  int32              `json:"scrape_attempts"`
+	PersistAttempts int32              `json:"persist_attempts"`
+	Error           string             `json:"error"`
+}
+
+func (q *Queries) InsertScrapeFailure(ctx context.Context, arg InsertScrapeFailureParams) error {
+	_, err := q.db.Exec(ctx, insertScrapeFailure,
+		arg.Kind,
+		arg.Stage,
+		arg.FailedAt,
+		arg.ScrapeAttempts,
+		arg.PersistAttempts,
+		arg.Error,
+	)
+	return err
+}
+
+const reliabilitySince = `-- name: ReliabilitySince :one
+WITH s AS (
+    SELECT
+        COUNT(*) AS successes,
+        COUNT(*) FILTER (WHERE scrape_attempts > 1 OR persist_attempts > 1) AS recovered
+    FROM scrapes WHERE scraped_at >= $1
+), f AS (
+    SELECT COUNT(*) AS failures
+    FROM scrape_failures WHERE failed_at >= $1
+)
+SELECT s.successes, s.recovered, f.failures,
+       ROUND(100.0 * s.successes / NULLIF(s.successes + s.failures, 0), 2)::float8 AS success_pct,
+       ROUND(100.0 * s.recovered / NULLIF(s.recovered + s.failures, 0), 2)::float8 AS recovery_pct
+FROM s, f
+`
+
+type ReliabilitySinceRow struct {
+	Successes   int64   `json:"successes"`
+	Recovered   int64   `json:"recovered"`
+	Failures    int64   `json:"failures"`
+	SuccessPct  float64 `json:"success_pct"`
+	RecoveryPct float64 `json:"recovery_pct"`
+}
+
+func (q *Queries) ReliabilitySince(ctx context.Context, since pgtype.Timestamptz) (ReliabilitySinceRow, error) {
+	row := q.db.QueryRow(ctx, reliabilitySince, since)
+	var i ReliabilitySinceRow
+	err := row.Scan(
+		&i.Successes,
+		&i.Recovered,
+		&i.Failures,
+		&i.SuccessPct,
+		&i.RecoveryPct,
+	)
+	return i, err
 }
 
 const upsertUser = `-- name: UpsertUser :exec

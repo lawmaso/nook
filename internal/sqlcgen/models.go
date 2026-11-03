@@ -53,12 +53,56 @@ func (ns NullLeaderboard) Value() (driver.Value, error) {
 	return string(ns.Leaderboard), nil
 }
 
+type ScrapeStage string
+
+const (
+	ScrapeStageScrape  ScrapeStage = "scrape"
+	ScrapeStagePersist ScrapeStage = "persist"
+)
+
+func (e *ScrapeStage) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ScrapeStage(s)
+	case string:
+		*e = ScrapeStage(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ScrapeStage: %T", src)
+	}
+	return nil
+}
+
+type NullScrapeStage struct {
+	ScrapeStage ScrapeStage `json:"scrape_stage"`
+	Valid       bool        `json:"valid"` // Valid is true if ScrapeStage is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullScrapeStage) Scan(value interface{}) error {
+	if value == nil {
+		ns.ScrapeStage, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ScrapeStage.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullScrapeStage) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ScrapeStage), nil
+}
+
 type Scrape struct {
-	ScrapeID   int64              `json:"scrape_id"`
-	Kind       Leaderboard        `json:"kind"`
-	ScrapedAt  pgtype.Timestamptz `json:"scraped_at"`
-	DurationMs int32              `json:"duration_ms"`
-	Period     pgtype.Date        `json:"period"`
+	ScrapeID        int64              `json:"scrape_id"`
+	Kind            Leaderboard        `json:"kind"`
+	Period          pgtype.Date        `json:"period"`
+	ScrapedAt       pgtype.Timestamptz `json:"scraped_at"`
+	DurationMs      int32              `json:"duration_ms"`
+	ScrapeAttempts  int32              `json:"scrape_attempts"`
+	PersistAttempts int32              `json:"persist_attempts"`
 }
 
 type ScrapeEntry struct {
@@ -72,6 +116,16 @@ type ScrapeEntry struct {
 	AvgTimeS       float64            `json:"avg_time_s"`
 	AvgPoints      float64            `json:"avg_points"`
 	LastActive     pgtype.Timestamptz `json:"last_active"`
+}
+
+type ScrapeFailure struct {
+	FailureID       int64              `json:"failure_id"`
+	Kind            Leaderboard        `json:"kind"`
+	Stage           ScrapeStage        `json:"stage"`
+	FailedAt        pgtype.Timestamptz `json:"failed_at"`
+	ScrapeAttempts  int32              `json:"scrape_attempts"`
+	PersistAttempts int32              `json:"persist_attempts"`
+	Error           string             `json:"error"`
 }
 
 type User struct {

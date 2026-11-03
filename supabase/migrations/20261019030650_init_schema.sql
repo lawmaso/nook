@@ -1,4 +1,5 @@
 CREATE TYPE leaderboard AS ENUM ('monthly', 'global');
+CREATE TYPE scrape_stage AS ENUM ('scrape', 'persist');
 
 CREATE TABLE users (
     uid          INT PRIMARY KEY,
@@ -7,11 +8,13 @@ CREATE TABLE users (
 );
 
 CREATE TABLE scrapes (
-    scrape_id   BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    kind        leaderboard NOT NULL,
-    scraped_at  TIMESTAMPTZ NOT NULL,  -- scrape start (from ScrapeStats)
-    duration_ms INTEGER     NOT NULL CHECK (duration_ms >= 0),
-    period      DATE,  -- first day of month (ET); NULL for global scrapes
+    scrape_id        BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    kind             leaderboard NOT NULL,
+    period           DATE,  -- first day of month (ET); NULL for global scrapes
+    scraped_at       TIMESTAMPTZ NOT NULL,
+    duration_ms      INT         NOT NULL CHECK (duration_ms >= 0),
+    scrape_attempts  INT         NOT NULL DEFAULT 1 CHECK (scrape_attempts  >= 1),
+    persist_attempts INT         NOT NULL DEFAULT 1 CHECK (persist_attempts >= 1),
 
     CONSTRAINT scrape_period_matches_kind CHECK (
         (kind = 'monthly' AND period is NOT NULL AND EXTRACT(DAY FROM period) = 1) OR
@@ -36,3 +39,15 @@ CREATE TABLE scrape_entries (
 );
 
 CREATE INDEX idx_scrape_entries_uid ON scrape_entries (uid, scrape_id);
+
+CREATE TABLE scrape_failures (
+    failure_id       BIGINT       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    kind             leaderboard  NOT NULL,
+    stage            scrape_stage NOT NULL,
+    failed_at        TIMESTAMPTZ  NOT NULL,
+    scrape_attempts  INT          NOT NULL CHECK (scrape_attempts  >= 0),
+    persist_attempts INT          NOT NULL CHECK (persist_attempts >= 0),
+    error            TEXT         NOT NULL
+);
+
+CREATE INDEX idx_scrape_failures_failed_at ON scrape_failures (failed_at);
