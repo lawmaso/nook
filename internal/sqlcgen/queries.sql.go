@@ -11,60 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getEntriesForScrape = `-- name: GetEntriesForScrape :many
-SELECT e.uid, u.username, e.rank, e.total_points,
-       e.solved, e.attempted, e.acceptance_rate,
-       e.avg_time_s, e.avg_points, e.last_active
-FROM scrape_entries e
-JOIN users u USING (uid)
-WHERE e.scrape_id = $1
-ORDER BY e.rank ASC
-`
-
-type GetEntriesForScrapeRow struct {
-	Uid            int32              `json:"uid"`
-	Username       string             `json:"username"`
-	Rank           int32              `json:"rank"`
-	TotalPoints    int32              `json:"total_points"`
-	Solved         int32              `json:"solved"`
-	Attempted      int32              `json:"attempted"`
-	AcceptanceRate float64            `json:"acceptance_rate"`
-	AvgTimeS       float64            `json:"avg_time_s"`
-	AvgPoints      float64            `json:"avg_points"`
-	LastActive     pgtype.Timestamptz `json:"last_active"`
-}
-
-func (q *Queries) GetEntriesForScrape(ctx context.Context, scrapeID int64) ([]GetEntriesForScrapeRow, error) {
-	rows, err := q.db.Query(ctx, getEntriesForScrape, scrapeID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetEntriesForScrapeRow
-	for rows.Next() {
-		var i GetEntriesForScrapeRow
-		if err := rows.Scan(
-			&i.Uid,
-			&i.Username,
-			&i.Rank,
-			&i.TotalPoints,
-			&i.Solved,
-			&i.Attempted,
-			&i.AcceptanceRate,
-			&i.AvgTimeS,
-			&i.AvgPoints,
-			&i.LastActive,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getLatestScrapes = `-- name: GetLatestScrapes :many
 
 SELECT scrape_id, kind, scraped_at, duration_ms, period
@@ -97,6 +43,60 @@ func (q *Queries) GetLatestScrapes(ctx context.Context, arg GetLatestScrapesPara
 			&i.ScrapedAt,
 			&i.DurationMs,
 			&i.Period,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getScrapeEntries = `-- name: GetScrapeEntries :many
+SELECT e.uid, u.username, e.rank, e.total_points,
+       e.solved, e.attempted, e.acceptance_rate,
+       e.avg_time_s, e.avg_points, e.last_active
+FROM scrape_entries e
+JOIN users u USING (uid)
+WHERE e.scrape_id = $1
+ORDER BY e.rank ASC
+`
+
+type GetScrapeEntriesRow struct {
+	Uid            int32              `json:"uid"`
+	Username       string             `json:"username"`
+	Rank           int32              `json:"rank"`
+	TotalPoints    int32              `json:"total_points"`
+	Solved         int32              `json:"solved"`
+	Attempted      int32              `json:"attempted"`
+	AcceptanceRate float64            `json:"acceptance_rate"`
+	AvgTimeS       float64            `json:"avg_time_s"`
+	AvgPoints      float64            `json:"avg_points"`
+	LastActive     pgtype.Timestamptz `json:"last_active"`
+}
+
+func (q *Queries) GetScrapeEntries(ctx context.Context, scrapeID int64) ([]GetScrapeEntriesRow, error) {
+	rows, err := q.db.Query(ctx, getScrapeEntries, scrapeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetScrapeEntriesRow
+	for rows.Next() {
+		var i GetScrapeEntriesRow
+		if err := rows.Scan(
+			&i.Uid,
+			&i.Username,
+			&i.Rank,
+			&i.TotalPoints,
+			&i.Solved,
+			&i.Attempted,
+			&i.AcceptanceRate,
+			&i.AvgTimeS,
+			&i.AvgPoints,
+			&i.LastActive,
 		); err != nil {
 			return nil, err
 		}

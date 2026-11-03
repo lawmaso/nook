@@ -121,7 +121,7 @@ func (st *Store) LastTwoScrapes(
 	}
 
 	load := func(scrapeID int64) ([]*models.User, error) {
-		entries, err := st.q.GetEntriesForScrape(ctx, scrapeID)
+		entries, err := st.q.GetScrapeEntries(ctx, scrapeID)
 		if err != nil {
 			return nil, fmt.Errorf("get entries for scrape %d: %w", scrapeID, err)
 		}

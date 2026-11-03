@@ -36,7 +36,7 @@ WHERE kind = @kind
 ORDER BY scraped_at DESC
 LIMIT sqlc.arg('limit');
 
--- name: GetEntriesForScrape :many
+-- name: GetScrapeEntries :many
 SELECT e.uid, u.username, e.rank, e.total_points,
        e.solved, e.attempted, e.acceptance_rate,
        e.avg_time_s, e.avg_points, e.last_active
