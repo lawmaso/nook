@@ -2,7 +2,7 @@
  * @queries.ts
  */
 
-import { ISODate, Kind, Leaderboard, LeaderboardEntry, Scrape, TrajectoryPoint, TrajectoryRow, User } from "./models";
+import { ISODate, Kind, Leaderboard, LeaderboardEntry, Scrape, TrajectoryMetric, TrajectoryPoint, TrajectoryRow, User } from "./models";
 import { supabase } from "./supabase";
 
 
@@ -135,29 +135,54 @@ export async function getLatestLeaderboard(
     }
 }
 
+const MAX_TRAJECTORY_POINTS = 80
+
+function downsample<T>(items: T[], max: number): T[] {
+    if (items.length <= max) return items
+
+    const step = (items.length - 1) / (max - 1)
+    return Array.from({ length: max }, (_v, i) => items[Math.round(i * step)])
+}
+
+type ScrapeStub = Pick<Scrape, "scrape_id" | "scraped_at">
+type MetricRow = { scrape_id: number; uid: number } & Partial<Record<TrajectoryMetric, number>>
+
 export async function getTrajectories(
     kind: Kind,
     period: ISODate | undefined,
-    uids: number[]
+    uids: number[],
+    metric: TrajectoryMetric
 ): Promise<TrajectoryPoint[]> {
     if (uids.length === 0) return []
 
-    const rows = await fetchAll<TrajectoryRow>((from, to) => {
+    const scrapes = await fetchAll<ScrapeStub>((from, to) => {
         let query = supabase
-            .from("scrape_entries")
-            .select("*, users(*), scrapes!inner(kind, period, scraped_at)")
-            .eq("scrapes.kind", kind)
-            .in("uid", uids)
+            .from("scrapes")
+            .select("scrape_id, scraped_at")
         
-        if (kind === "global") query = query.is("scrapes.period", null)
-        else if (period)       query = query.eq("scrapes.period", period)
+        if (kind === "global") query = query.is("period", null)
+        else if (period)       query = query.eq("period", period)
 
-        return query.order("scrape_id").range(from, to)
+        return query.order("scraped_at").range(from, to)
     })
 
-    return rows.map(({ users, scrapes, ...entry }) => ({
-        ...entry,
-        scrape: scrapes,
-        user: users
+    const picked = downsample(scrapes, MAX_TRAJECTORY_POINTS)
+    if (picked.length === 0) return []
+    const timeById = new Map(picked.map((s) => [s.scrape_id, Date.parse(s.scraped_at)]))
+
+    const rows = await fetchAll<MetricRow>((from, to) =>
+        supabase
+            .from("scrape_entries")
+            .select(`scrape_id, uid, ${metric}`)
+            .in("scrape_id", [...timeById.keys()])
+            .in("uid", uids)
+            .order("scrape_id")
+            .range(from, to) as unknown as PromiseLike<{ data: MetricRow[] | null; error: Error | null}>
+    )
+
+    return rows.map((r) => ({
+        uid: r.uid,
+        t: timeById.get(r.scrape_id)!,
+        value: r[metric] ?? 0
     }))
 }

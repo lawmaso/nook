@@ -6,7 +6,7 @@
 
 "use server"
 
-import { ISODate, Kind, Leaderboard, TrajectoryPoint } from "./models";
+import { ISODate, Kind, Leaderboard, TrajectoryMetric, TrajectoryPoint } from "./models";
 import { getLatestLeaderboard, getTrajectories } from "./queries";
 
 export async function loadLeaderboard(
@@ -15,9 +15,16 @@ export async function loadLeaderboard(
     return getLatestLeaderboard(kind, period)
 }
 
+const METRICS = new Set<TrajectoryMetric>([
+    "total_points", "solved", "attempted",
+    "acceptance_rate", "avg_time_s", "avg_points"
+])
+const MAX_UIDS = 25
+
 export async function loadTrajectories(
     kind: Kind, period: ISODate | undefined,
-    uids: number[]
+    uids: number[], metric: TrajectoryMetric
 ): Promise<TrajectoryPoint[]> {
-    return getTrajectories(kind, period, uids)
+    if (!METRICS.has(metric)) throw new Error("Unknown metric")
+        return getTrajectories(kind, period, uids.slice(0, MAX_UIDS), metric)
 }

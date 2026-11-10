@@ -5,9 +5,10 @@
 "use client"
 import { ISODate, Kind, LeaderboardEntry, ScrapeEntry, TrajectoryPoint } from "@/lib/models"
 import React, { useEffect, useMemo, useState } from "react"
-import { ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "./ui/chart"
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart"
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { loadTrajectories } from "@/lib/actions"
+import { userColor } from "@/lib/colors"
 
 export type GraphProps = {
     entries: LeaderboardEntry[]
@@ -241,39 +242,42 @@ function Trajectory({
         setLoading(true)
         setError(null)
         
-        loadTrajectories(kind, period, shown.map((e) => e.uid))
+        loadTrajectories(kind, period, shown.map((e) => e.uid), metric)
             .then((r) => !cancelled && setPoints(r))
             .catch((e) => !cancelled && setError(e instanceof Error ? e.message : "Trajectory load failed"))
             .finally(() => !cancelled && setLoading(false))
-    }, [kind, period, uidKey])
+    }, [kind, period, uidKey, metric])
 
     const data = useMemo(() => {
         const byTime = new Map<number, Record<string, number>>()
 
         for (const p of points) {
-            const t = Date.parse(p.scrape.scraped_at)
-            const row = byTime.get(t) ?? { t }
+            const row = byTime.get(p.t) ?? { t: p.t }
 
-            row[`u${p.uid}`] = p[metric]
-            byTime.set(t, row)
+            row[`u${p.uid}`] = p.value
+            byTime.set(p.t, row)
         }
 
         return [...byTime.values()].sort((a, b) => a.t - b.t)
-    }, [points, metric])
+    }, [points])
 
-    const config = Object.fromEntries(
-        shown.map((e, i) => [
-            `u${e.uid}`,
-            {
-                label: e.user.username,
-                color: "var(--chart-3)"
-            }
-        ])
-    ) as ChartConfig
 
-    if (error) return
-    if (loading) return
-    if (data.length < 2) return
+    const config = useMemo(
+        () => Object.fromEntries(
+            shown.map((e, _i) => [
+                `u${e.uid}`,
+                {
+                    label: e.user.username,
+                    color: "var(--chart-1)"
+                }
+            ])
+        ) as ChartConfig,
+        [shown]
+    )
+
+    if (error)           return <p className="text-sm text-destructive">{error}</p>
+    if (loading)         return <p className="text-sm text-muted-foreground">Loading trajectory</p>
+    if (data.length < 2) return <p className="text-sm text-muted-foreground">Not enough scrapes to form trajectory.</p>
 
     const day = (t: number) =>
         new Date(t).toLocaleDateString(undefined, {
@@ -299,18 +303,21 @@ function Trajectory({
                     content={
                         <ChartTooltipContent
                             labelFormatter={(_, payload) =>
-                                new Date(payload?.[0]?.payload?.t).toLocaleDateString()
+                                new Date(payload?.[0]?.payload?.t).toLocaleString()
                             }
                         />
                     }
                 />
-                <ChartLegend content={<ChartLegendContent />} />
-
-                {shown.map((e) => (
+                {shown.map((e, idx) => (
                     <Area
                         key={e.uid}
                         dataKey={`u${e.uid}`}
-                        type="monotone"
+                        type="step"
+                        stroke={userColor(idx)}
+                        fillOpacity={0}
+                        strokeWidth={1.44}
+                        dot={false}
+                        isAnimationActive={false}
                         connectNulls
                     />
                 ))}
@@ -432,6 +439,30 @@ export const GRAPHS: GraphGroup[] = [
                 "Total points",
                 "A trajectory of individual user points",
                 "total_points"
+            ),
+            tGraph(
+                "t-avg-time",
+                "Average time",
+                "A trajectory of individual user time averages (s)",
+                "avg_time_s",
+            ),
+            tGraph(
+                "t-acceptance-rate",
+                "Accentance rate",
+                "A trajectory of individual acceptance rates",
+                "acceptance_rate"
+            ),
+            tGraph(
+                "t-solved",
+                "Total solved",
+                "A trajectory of individual solves",
+                "solved"
+            ),
+            tGraph(
+                "t-avg-points",
+                "Average points",
+                "A trajectory of individual average points per puzzle",
+                "avg_points"
             ),
         ]
     }

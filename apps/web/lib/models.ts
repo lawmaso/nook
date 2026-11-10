@@ -48,9 +48,14 @@ export type UserHistoryPoint = ScrapeEntry & {
     scrape: Pick<Scrape, "kind" | "period" | "scraped_at">
 }
 
-export type TrajectoryPoint = UserHistoryPoint & { user: User }
+// export type TrajectoryPoint = UserHistoryPoint & { user: User }
+export type TrajectoryPoint = { uid: number; t: number; value: number }
 
 export type TrajectoryRow = ScrapeEntry & {
     users: User
     scrapes: Pick<Scrape, "kind" | "period" | "scraped_at">
 }
+
+export type TrajectoryMetric =
+    | "total_points" | "solved" | "attempted"
+    | "acceptance_rate" | "avg_time_s" | "avg_points"

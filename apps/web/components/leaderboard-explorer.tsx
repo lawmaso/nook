@@ -51,7 +51,7 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
     const [kind, setKind]               = useState<Kind>("monthly")
     const [period, setPeriod]           = useState<ISODate | undefined>(initial?.scrape.period ?? periods[0])
     const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(initial)
-    const [graphId, setGraphId]         = useState(GRAPHS[0].graphs[0].id)
+    const [graphId, setGraphId]         = useState(GRAPHS[GRAPHS.length-1].graphs[0].id)
     const [n, setN]                     = useState(100)
     const [bins, setBins]               = useState(15)
     const [loading, setLoading]         = useState(false)
@@ -63,7 +63,7 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
 
     const graph = GRAPHS
         .flatMap((group) => group.graphs)
-        .find((g) => g.id === graphId) ?? GRAPHS[0].graphs[0]
+        .find((g) => g.id === graphId) ?? GRAPHS[GRAPHS.length-1].graphs[0]
 
     const periodByMonth = useMemo(
         () => new Map(periods.map((p) => [monthKey(p), p])),
