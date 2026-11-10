@@ -2,7 +2,7 @@
  * @queries.ts
  */
 
-import { ISODate, Kind, Leaderboard, LeaderboardEntry, Scrape, User } from "./models";
+import { ISODate, Kind, Leaderboard, LeaderboardEntry, Scrape, TrajectoryPoint, TrajectoryRow, User } from "./models";
 import { supabase } from "./supabase";
 
 
@@ -133,4 +133,31 @@ export async function getLatestLeaderboard(
         scrape,
         entries: await getScrapeEntries(scrape.scrape_id)
     }
+}
+
+export async function getTrajectories(
+    kind: Kind,
+    period: ISODate | undefined,
+    uids: number[]
+): Promise<TrajectoryPoint[]> {
+    if (uids.length === 0) return []
+
+    const rows = await fetchAll<TrajectoryRow>((from, to) => {
+        let query = supabase
+            .from("scrape_entries")
+            .select("*, users(*), scrapes!inner(kind, period, scraped_at)")
+            .eq("scrapes.kind", kind)
+            .in("uid", uids)
+        
+        if (kind === "global") query = query.is("scrapes.period", null)
+        else if (period)       query = query.eq("scrapes.period", period)
+
+        return query.order("scrape_id").range(from, to)
+    })
+
+    return rows.map(({ users, scrapes, ...entry }) => ({
+        ...entry,
+        scrape: scrapes,
+        user: users
+    }))
 }

@@ -3,10 +3,11 @@
  */
 
 "use client"
-import { ISODate, Kind, LeaderboardEntry, ScrapeEntry } from "@/lib/models"
-import React, { useMemo } from "react"
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart"
+import { ISODate, Kind, LeaderboardEntry, ScrapeEntry, TrajectoryPoint } from "@/lib/models"
+import React, { useEffect, useMemo, useState } from "react"
+import { ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "./ui/chart"
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { loadTrajectories } from "@/lib/actions"
 
 export type GraphProps = {
     entries: LeaderboardEntry[]
@@ -218,6 +219,106 @@ const nGraph = (
     }
 })
 
+function Trajectory({
+    entries, n, kind, period, metric
+}: GraphProps & { metric: Metric }) {
+    const shown = useMemo(
+        () => [...entries]
+            .sort((a, b) => b[metric] - a[metric])
+            .slice(),
+        [entries, n, metric]
+    )
+
+    const uidKey = shown.map((e) => e.uid).join(",")
+
+    const [points, setPoints]   = useState<TrajectoryPoint[]>([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError]     = useState<string | null>(null)
+
+    useEffect(() => {
+        let cancelled = false
+
+        setLoading(true)
+        setError(null)
+        
+        loadTrajectories(kind, period, shown.map((e) => e.uid))
+            .then((r) => !cancelled && setPoints(r))
+            .catch((e) => !cancelled && setError(e instanceof Error ? e.message : "Trajectory load failed"))
+            .finally(() => !cancelled && setLoading(false))
+    }, [kind, period, uidKey])
+
+    const data = useMemo(() => {
+        const byTime = new Map<number, Record<string, number>>()
+
+        for (const p of points) {
+            const t = Date.parse(p.scrape.scraped_at)
+            const row = byTime.get(t) ?? { t }
+
+            row[`u${p.uid}`] = p[metric]
+            byTime.set(t, row)
+        }
+
+        return [...byTime.values()].sort((a, b) => a.t - b.t)
+    }, [points, metric])
+
+    const config = Object.fromEntries(
+        shown.map((e, i) => [
+            `u${e.uid}`,
+            {
+                label: e.user.username,
+                color: "var(--chart-3)"
+            }
+        ])
+    ) as ChartConfig
+
+    if (error) return
+    if (loading) return
+    if (data.length < 2) return
+
+    const day = (t: number) =>
+        new Date(t).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric"
+        })
+    
+    return (
+        <ResponsiveContainer config={config}>
+            <AreaChart data={data}>
+                <CartesianGrid />
+                <XAxis
+                    dataKey="t"
+                    type="number"
+                    scale="time"
+                    domain={["dataMin", "dataMax"]}
+                    tickFormatter={day}
+                />
+                <YAxis
+                    tickFormatter={(v) => compact.format(v)}
+                />
+                <ChartTooltip
+                    content={
+                        <ChartTooltipContent
+                            labelFormatter={(_, payload) =>
+                                new Date(payload?.[0]?.payload?.t).toLocaleDateString()
+                            }
+                        />
+                    }
+                />
+                <ChartLegend content={<ChartLegendContent />} />
+
+                {shown.map((e) => (
+                    <Area
+                        key={e.uid}
+                        dataKey={`u${e.uid}`}
+                        type="monotone"
+                        connectNulls
+                    />
+                ))}
+            </AreaChart>
+        </ResponsiveContainer>
+    )
+}
+
 const hGraph = (
     id: string, title: string,
     description: string, metric: Metric
@@ -229,6 +330,20 @@ const hGraph = (
     usesBins: true,
     render: function (props: GraphProps): React.ReactNode {
         return <Histogram {...props} metric={metric} />
+    }
+})
+
+const tGraph = (
+    id: string, title: string,
+    description: string, metric: Metric
+): LeaderboardGraph => ({
+    id,
+    title,
+    description,
+    usesN: true,
+    usesBins: false,
+    render: function (props: GraphProps): React.ReactNode {
+        return <Trajectory {...props} metric={metric} />
     }
 })
 
@@ -309,5 +424,15 @@ export const GRAPHS: GraphGroup[] = [
             ),
         ]
     },
+    {
+        title: "Trajectory",
+        graphs: [
+            tGraph(
+                "t-total-points",
+                "Total points",
+                "A trajectory of individual user points",
+                "total_points"
+            ),
+        ]
+    }
 ]
-

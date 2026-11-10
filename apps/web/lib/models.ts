@@ -42,3 +42,15 @@ export type Leaderboard = {
     scrape: Scrape,
     entries: LeaderboardEntry[]
 }
+
+// One point in a user's history (i.e., their entry + the origin scrape)
+export type UserHistoryPoint = ScrapeEntry & {
+    scrape: Pick<Scrape, "kind" | "period" | "scraped_at">
+}
+
+export type TrajectoryPoint = UserHistoryPoint & { user: User }
+
+export type TrajectoryRow = ScrapeEntry & {
+    users: User
+    scrapes: Pick<Scrape, "kind" | "period" | "scraped_at">
+}
