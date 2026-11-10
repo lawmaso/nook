@@ -379,7 +379,7 @@ export const GRAPHS: GraphGroup[] = [
             ),
             nGraph(
                 "n-acceptance-rate",
-                "Accentance rate",
+                "Acceptance rate",
                 "A distribution of individual acceptance rates",
                 "acceptance_rate"
             ),
@@ -414,7 +414,7 @@ export const GRAPHS: GraphGroup[] = [
             ),
             hGraph(
                 "h-acceptance-rate",
-                "Accentance rate",
+                "Acceptance rate",
                 "A histogram of collective acceptance rates",
                 "acceptance_rate"
             ),
@@ -449,7 +449,7 @@ export const GRAPHS: GraphGroup[] = [
             ),
             tGraph(
                 "t-acceptance-rate",
-                "Accentance rate",
+                "Acceptance rate",
                 "A trajectory of individual acceptance rates",
                 "acceptance_rate"
             ),
