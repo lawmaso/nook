@@ -298,6 +298,7 @@ function Trajectory({
                 />
                 <YAxis
                     tickFormatter={(v) => compact.format(v)}
+                    domain={["dataMin", "dataMax"]}
                 />
                 <ChartTooltip
                     content={
