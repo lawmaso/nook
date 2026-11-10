@@ -17,7 +17,7 @@ export type Scrape = {
     scrape_id:        number
     kind:             Kind,
     period:           ISODate | null
-    scrape_at:        ISOTimestamp
+    scraped_at:       ISOTimestamp
     duration_ms:      number
     scrape_attempts:  number
     persist_attempts: number
