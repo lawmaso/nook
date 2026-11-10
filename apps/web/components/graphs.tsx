@@ -11,6 +11,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from "rec
 export type GraphProps = {
     entries: LeaderboardEntry[]
     n:       number
+    bins:    number
     kind:    Kind
     period?: ISODate
 }
@@ -20,6 +21,7 @@ export type LeaderboardGraph = {
     title:       string
     description: string
     usesN:       boolean
+    usesBins:    boolean
     render:      (props: GraphProps) => React.ReactNode
 }
 
@@ -134,7 +136,7 @@ function buildHistogram(values: number[], bins: number) {
 
 function Histogram({
     entries, metric, bins
-}: GraphProps & { metric: Metric; bins: number }) {
+}: GraphProps & { metric: Metric }) {
     const data = useMemo(
         () => buildHistogram(entries.map((e) => e[metric]), bins),
         [entries, metric, bins]
@@ -210,6 +212,7 @@ const nGraph = (
     title,
     description,
     usesN: true,
+    usesBins: false,
     render: function (props: GraphProps): React.ReactNode {
         return <NBar {...props} metric={metric} label={title} reverse={reverse}/>
     }
@@ -217,15 +220,15 @@ const nGraph = (
 
 const hGraph = (
     id: string, title: string,
-    description: string, metric: Metric,
-    bins: number = 90
+    description: string, metric: Metric
 ): LeaderboardGraph => ({
     id,
     title,
     description,
     usesN: false,
+    usesBins: true,
     render: function (props: GraphProps): React.ReactNode {
-        return <Histogram {...props} metric={metric} bins={bins} />
+        return <Histogram {...props} metric={metric} />
     }
 })
 
@@ -279,7 +282,31 @@ export const GRAPHS: GraphGroup[] = [
                 "User points",
                 "A histogram of collective user points",
                 "total_points"
-            )
+            ),
+            hGraph(
+                "h-avg-time",
+                "Average time",
+                "A histogram of collective user time averages (s)",
+                "avg_time_s",
+            ),
+            hGraph(
+                "h-acceptance-rate",
+                "Accentance rate",
+                "A histogram of collective acceptance rates",
+                "acceptance_rate"
+            ),
+            hGraph(
+                "h-solved",
+                "Total solved",
+                "A histogram of collective solves",
+                "solved"
+            ),
+            hGraph(
+                "h-avg-points",
+                "Average points",
+                "A histogram of collective average points per puzzle",
+                "avg_points"
+            ),
         ]
     },
 ]

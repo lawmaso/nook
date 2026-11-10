@@ -33,6 +33,15 @@ const nOptions = [
     { label: "All", value: 100 },
 ]
 
+const binOptions = [
+    { label: "10 bins", value: 10 },
+    { label: "15 bins", value: 15 },
+    { label: "25 bins", value: 25 },
+    { label: "50 bins", value: 50 },
+    { label: "75 bins", value: 75 },
+    { label: "100 bins", value: 100 },
+]
+
 type ExplorerProps = {
     periods: ISODate[]
     initial: Leaderboard | null
@@ -44,6 +53,7 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
     const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(initial)
     const [graphId, setGraphId]         = useState(GRAPHS[0].graphs[0].id)
     const [n, setN]                     = useState(100)
+    const [bins, setBins]               = useState(15)
     const [loading, setLoading]         = useState(false)
     const [error, setError]             = useState<string | null>(null)
     const [dateRange, setDateRange]     = useState<DateRange | undefined>({
@@ -146,6 +156,23 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
                                     </SelectContent>
                                 </Select>
                             )}
+
+                            {graph.usesBins && (
+                                <Select items={binOptions} defaultValue={15} onValueChange={(v) => v && setBins(v)}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent alignItemWithTrigger>
+                                        <SelectGroup>
+                                            {binOptions.map((item) => (
+                                                <SelectItem key={item.value} value={item.value}>
+                                                    {item.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                            )}
                         </div>
                     </div>
                 </CardHeader>
@@ -171,6 +198,7 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
                             graph.render({
                                 entries: leaderboard.entries,
                                 n,
+                                bins,
                                 kind,
                                 period
                             })
