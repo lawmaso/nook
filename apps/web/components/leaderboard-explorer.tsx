@@ -11,18 +11,27 @@ import { Tabs, TabsList, TabsTrigger } from "./ui/tabs"
 import { Calendar } from "./ui/calendar"
 import { DateRange } from "react-day-picker"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "./ui/select"
 import { GRAPHS } from "./graphs"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "./ui/empty"
 import { FolderOpenIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
 
-const N_OPTIONS = [10, 15, 25, 50, 75, 100]
 const monthKey = (iso: string): string => iso.slice(0, 7)
 const dateMonthKey = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
 const parseISODate = (iso: ISODate): Date => {
     const [y, m, d] = iso.slice(0, 10).split("-").map(Number)
     return new Date(y, m - 1, d)
 }
+
+const nOptions = [
+    { label: "Top 10", value: 10 },
+    { label: "Top 15", value: 15 },
+    { label: "Top 25", value: 25 },
+    { label: "Top 50", value: 50 },
+    { label: "Top 75", value: 75 },
+    { label: "All", value: 100 },
+]
 
 type ExplorerProps = {
     periods: ISODate[]
@@ -33,17 +42,18 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
     const [kind, setKind]               = useState<Kind>("monthly")
     const [period, setPeriod]           = useState<ISODate | undefined>(initial?.scrape.period ?? periods[0])
     const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(initial)
-    const [graphId, setGraphId]         = useState(GRAPHS[0].id)
-    const [n, setN]                     = useState(10)
+    const [graphId, setGraphId]         = useState(GRAPHS[0].graphs[0].id)
+    const [n, setN]                     = useState(100)
     const [loading, setLoading]         = useState(false)
     const [error, setError]             = useState<string | null>(null)
-    const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    const [dateRange, setDateRange]     = useState<DateRange | undefined>({
         from: parseISODate(period!),
         to: new Date(Date.now())
     })
 
-    const graph = GRAPHS.find((g) => g.id === graphId) ?? GRAPHS[0]
-
+    const graph = GRAPHS
+        .flatMap((group) => group.graphs)
+        .find((g) => g.id === graphId) ?? GRAPHS[0].graphs[0]
 
     const periodByMonth = useMemo(
         () => new Map(periods.map((p) => [monthKey(p), p])),
@@ -69,7 +79,7 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
     }
 
     return (
-        <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
+        <div className="grid h-full min-h-0 gap-6 lg:grid-cols-[auto_1fr]">
             <div className="flex flex-col gap-4">
                 <Tabs value={kind} onValueChange={handleKind}>
                     <TabsList className="w-full">
@@ -91,54 +101,55 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
                 />
             </div>
 
-            <Card>
+            <Card className="min-h-0 flex flex-col overflow-hidden">
                 <CardHeader className="gap-4">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <CardTitle>{graph.title}</CardTitle>
-                            <CardDescription>{graph.description}</CardDescription>
+                            <CardTitle className="text-lg">{graph.title}</CardTitle>
+                            <CardDescription className="text-md">{graph.description}</CardDescription>
                         </div>
                         <div className="flex gap-2">
-                            <Select value={graph.title} onValueChange={(value) => {
-
-                            }}>
+                            <Select value={graph.title} onValueChange={(v) => v && setGraphId(v)}>
                                 <SelectTrigger className="w-[220px]">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {GRAPHS.map((graph) => (
-                                        <SelectItem key={graph.id} value={graph.title}>
-                                            {graph.title}
-                                        </SelectItem>
+                                    {GRAPHS.map((group) => (
+                                        <SelectGroup key={group.title}>
+                                            <SelectLabel>{group.title}</SelectLabel>
+                                            {group.graphs.map((g) => (
+                                                <SelectItem key={g.id} value={g.id}>
+                                                    {g.title}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
                                     ))}
                                 </SelectContent>
                             </Select>
 
                             {graph.usesN && (
-                                <Select value={String(n)} onValueChange={(value) => {
-                                    setN(Number(value))
-                                }}>
-                                    <SelectTrigger className="w-[110px]">
+                                <Select items={nOptions} defaultValue={100} onValueChange={(v) => v && setN(v)}>
+                                    <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {N_OPTIONS.map((nOpt) => (
-                                            <SelectItem key={nOpt} value={String(nOpt)}>
-                                                {nOpt != 100
-                                                    ? `Top ${nOpt}`
-                                                    : "All"
-
-                                                }
-                                            </SelectItem>
-                                        ))}
+                                        <SelectGroup>
+                                            {nOptions.map((item) => (
+                                                <SelectItem key={item.value} value={item.value}>
+                                                    {item.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
                                     </SelectContent>
                                 </Select>
                             )}
-
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className={loading ? "opacity-50 transition-opacity" : "transition-opacity"}>
+                <CardContent className={cn(
+                    "min-h-0 flex-1 transition-opacity",
+                    loading ? "opacity-50" : ""
+                )}>
                         {error ? (
                             <p className="text-sm text-destructive">{error}</p>
                         ) : !leaderboard || leaderboard.entries.length === 0 ? (
