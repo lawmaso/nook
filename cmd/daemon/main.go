@@ -46,5 +46,6 @@ func run(log *slog.Logger) error {
 		daemon.DefaultConfig(),
 		log,
 	)
+
 	return d.Run(ctx)
 }

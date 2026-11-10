@@ -50,14 +50,16 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		Jobs: []Job{
-			{ // Monthly leaderboard scrape job
+			// Monthly leaderboard scrape job
+			{
 				Leaderboard: models.MonthlyLeaderboard,
-				Interval:    15 * time.Minute,
+				Interval:    1 * time.Hour,
 				Timeout:     30 * time.Second,
 			},
-			{ // Global leaderboard scrape job
+			// Global leaderboard scrape job
+			{
 				Leaderboard: models.GlobalLeaderboard,
-				Interval:    1 * time.Hour,
+				Interval:    2 * time.Hour,
 				Timeout:     1 * time.Minute,
 			},
 		},
@@ -93,7 +95,9 @@ func New(
 
 func (d *Daemon) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
+
 	for _, job := range d.cfg.Jobs {
+		// fmt.Printf("lb=%v, interval=%v\n", job.Leaderboard.DBKind(), job.Interval)
 		wg.Go(func() { d.runJob(ctx, job) })
 	}
 	wg.Wait()
