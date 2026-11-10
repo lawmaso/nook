@@ -240,32 +240,32 @@ export const GRAPHS: GraphGroup[] = [
         graphs: [
             nGraph(
                 "n-user-points",
-                "User points distribution",
+                "User points",
                 "A distribution of individual user points",
                 "total_points"
             ),
             nGraph(
                 "n-avg-time",
-                "Average time distribution",
+                "Average time",
                 "A distribution of individual user time averages (s)",
                 "avg_time_s",
                 true
             ),
             nGraph(
                 "n-acceptance-rate",
-                "Accentance rate distribution",
+                "Accentance rate",
                 "A distribution of individual acceptance rates",
                 "acceptance_rate"
             ),
             nGraph(
                 "n-solved",
-                "Total solved distribution",
+                "Total solved",
                 "A distribution of individual solves",
                 "solved"
             ),
             nGraph(
                 "n-avg-points",
-                "Average points distribution",
+                "Average points",
                 "A distribution of individual average points per puzzle",
                 "avg_points"
             ),
@@ -276,7 +276,7 @@ export const GRAPHS: GraphGroup[] = [
         graphs: [
             hGraph(
                 "h-user-points",
-                "User points histogram",
+                "User points",
                 "A histogram of collective user points",
                 "total_points"
             )

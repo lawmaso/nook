@@ -4,14 +4,14 @@
 
 "use client"
 
-import { useMemo, useState } from "react"
+import React, { useMemo, useState } from "react"
 import { ISODate, Kind, Leaderboard } from "@/lib/models"
 import { loadLeaderboard } from "@/lib/actions"
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs"
 import { Calendar } from "./ui/calendar"
 import { DateRange } from "react-day-picker"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "./ui/select"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "./ui/select"
 import { GRAPHS } from "./graphs"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "./ui/empty"
 import { FolderOpenIcon } from "lucide-react"
@@ -114,15 +114,18 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {GRAPHS.map((group) => (
-                                        <SelectGroup key={group.title}>
-                                            <SelectLabel>{group.title}</SelectLabel>
-                                            {group.graphs.map((g) => (
-                                                <SelectItem key={g.id} value={g.id}>
-                                                    {g.title}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectGroup>
+                                    {GRAPHS.map((group, idx) => (
+                                        <React.Fragment key={group.title}>
+                                            <SelectGroup>
+                                                <SelectLabel>{group.title}</SelectLabel>
+                                                {group.graphs.map((g) => (
+                                                    <SelectItem key={g.id} value={g.id}>
+                                                        {g.title}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                            {idx < GRAPHS.length && <SelectSeparator />}
+                                        </React.Fragment>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -132,7 +135,7 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent alignItemWithTrigger>
                                         <SelectGroup>
                                             {nOptions.map((item) => (
                                                 <SelectItem key={item.value} value={item.value}>
