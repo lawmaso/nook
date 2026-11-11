@@ -10,6 +10,9 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { loadTrajectories } from "@/lib/actions"
 import { userColor } from "@/lib/colors"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "./ui/empty"
+import { CircleAlertIcon, FolderOpenIcon } from "lucide-react"
+import { Spinner } from "./ui/spinner"
 
 export type GraphProps = {
     entries: LeaderboardEntry[]
@@ -276,16 +279,53 @@ function Trajectory({
         [shown]
     )
 
-    if (error)           return <p className="text-sm text-destructive">{error}</p>
-    if (loading)         return <p className="text-sm text-muted-foreground">Loading trajectory</p>
-    if (data.length < 2) return <p className="text-sm text-muted-foreground">Not enough scrapes to form trajectory.</p>
+    const Placeholder = ({ icon, title, description, content }: {
+        icon: React.ReactNode,
+        title: string
+        description: string
+        content?: string
+    }) => (
+        <Empty className="border min-h-full">
+            <EmptyHeader>
+                <EmptyMedia variant="icon">{icon}</EmptyMedia>
+                <EmptyTitle className="text-xl">{title}</EmptyTitle>
+                <EmptyDescription>{description}</EmptyDescription>
+            </EmptyHeader>
+            {content && (
+                <EmptyContent>
+                    {content}
+                </EmptyContent>
+            )}
+        </Empty>
+        
+    )
+
+    if (error) {
+        return Placeholder({
+            icon: <CircleAlertIcon />,
+            title: "Error",
+            description: error
+        })
+    } else if (loading) {
+        return Placeholder({
+            icon: <Spinner />,
+            title: "Loading trajectory",
+            description: "Using scrape entries to create individual trajectories"
+        })
+    } else if (data.length <= 1) {
+        return Placeholder({
+            icon: <FolderOpenIcon />,
+            title: "Not enough scrapes",
+            description: "We don't have enough scrape entries to form valid trajectories"
+        })
+    }
 
     const day = (t: number) =>
         new Date(t).toLocaleDateString(undefined, {
             month: "short",
             day: "numeric"
         })
-    
+
     return (
         <ResponsiveContainer config={config}>
             <AreaChart data={data}>
@@ -299,7 +339,7 @@ function Trajectory({
                 />
                 <YAxis
                     tickFormatter={(v) => compact.format(v)}
-                    domain={["dataMin", "dataMax"]}
+                    domain={["auto", "auto"]}
                 />
                 <ChartTooltip
                     content={

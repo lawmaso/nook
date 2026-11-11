@@ -188,9 +188,9 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
                                     <EmptyMedia variant="icon">
                                         <FolderOpenIcon />
                                     </EmptyMedia>
-                                    <EmptyTitle>No Scrapes Found</EmptyTitle>
+                                    <EmptyTitle>No scrapes found</EmptyTitle>
                                     <EmptyDescription>
-                                        The selected scrape range hasn't happened yet, or we're too far into the future
+                                        The selected date range hasn't happened yet, or we're too far into the future
                                     </EmptyDescription>
                                 </EmptyHeader>
                             </Empty>
