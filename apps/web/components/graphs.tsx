@@ -209,21 +209,6 @@ function Distribution({
     )
 }
 
-const nGraph = (
-    id: string, title: string,
-    description: string, metric: Metric,
-    reverse: boolean = false
-): LeaderboardGraph => ({
-    id,
-    title,
-    description,
-    usesN: true,
-    usesBins: false,
-    render: function (props: GraphProps): React.ReactNode {
-        return <NBar {...props} metric={metric} label={title} reverse={reverse}/>
-    }
-})
-
 function Trajectory({
     entries, n, kind, period, metric
 }: GraphProps & { metric: Metric }) {
@@ -346,6 +331,7 @@ function Trajectory({
                         <ChartTooltipContent
                             labelFormatter={(_, payload) =>
                                 new Date(payload?.[0]?.payload?.t).toLocaleString("en-US", {
+                                    timeZone: "America/New_York",
                                     timeZoneName: "shortGeneric"
                                 }).replace(",", " @")
                             }
@@ -368,6 +354,21 @@ function Trajectory({
         </ResponsiveContainer>
     )
 }
+
+const nGraph = (
+    id: string, title: string,
+    description: string, metric: Metric,
+    reverse: boolean = false
+): LeaderboardGraph => ({
+    id,
+    title,
+    description,
+    usesN: true,
+    usesBins: false,
+    render: function (props: GraphProps): React.ReactNode {
+        return <NBar {...props} metric={metric} label={title} reverse={reverse}/>
+    }
+})
 
 const hGraph = (
     id: string, title: string,
