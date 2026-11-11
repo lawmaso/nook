@@ -37,7 +37,7 @@ type Metric = keyof Pick<
     "acceptance_rate" | "avg_time_s" | "avg_points"
 >
 
-const compact = new Intl.NumberFormat("en", {
+const compact = new Intl.NumberFormat("en-US", {
     notation: "compact",
     maximumFractionDigits: 1
 })
@@ -321,7 +321,7 @@ function Trajectory({
     }
 
     const day = (t: number) =>
-        new Date(t).toLocaleDateString(undefined, {
+        new Date(t).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric"
         })
@@ -345,7 +345,7 @@ function Trajectory({
                     content={
                         <ChartTooltipContent
                             labelFormatter={(_, payload) =>
-                                new Date(payload?.[0]?.payload?.t).toLocaleString("en", {
+                                new Date(payload?.[0]?.payload?.t).toLocaleString("en-US", {
                                     timeZoneName: "shortGeneric"
                                 }).replace(",", " @")
                             }
