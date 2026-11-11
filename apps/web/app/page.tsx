@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { getLatestLeaderboard, getScrapePeriods } from "@/lib/queries";
 import { LeaderboardExplorer } from "@/components/leaderboard-explorer";
+import Calculator from "@/components/calculator/calculator";
 
 async function Explorer() {
     const periods = await getScrapePeriods()
@@ -16,11 +17,12 @@ async function Explorer() {
 
 export default function Home() {
     return (
-        <main className="h-dvh overflow-hidden p-6 flex flex-col">
+        <main className="h-dvh p-6 flex flex-col">
             <h1 className="text-2xl font-semibold tracking-tight mb-2">Nook</h1>
-            <Suspense>
+            {/* <Suspense>
                 <Explorer />
-            </Suspense>
+            </Suspense> */}
+            <Calculator />
         </main>
     )
 }

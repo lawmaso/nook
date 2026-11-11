@@ -2,7 +2,7 @@
  * @queries.ts
  */
 
-import { ISODate, Kind, Leaderboard, LeaderboardEntry, Scrape, TrajectoryMetric, TrajectoryPoint, TrajectoryRow, User } from "./models";
+import { ISODate, Kind, Leaderboard, LeaderboardEntry, Scrape, ScrapeEntry, TrajectoryMetric, TrajectoryPoint, TrajectoryRow, User } from "./models";
 import { supabase } from "./supabase";
 
 
@@ -123,16 +123,24 @@ export async function getScrapeEntries(scrapeId: number): Promise<LeaderboardEnt
     }))
 }
 
+
 export async function getLatestLeaderboard(
     kind: Kind, period?: ISODate
 ): Promise<Leaderboard | null> {
     const scrape = await getLatestScrape(kind, period)
     if (!scrape) return null
-
+    
     return {
         scrape,
         entries: await getScrapeEntries(scrape.scrape_id)
     }
+}
+
+export async function getLatestScrapeEntries(kind: Kind): Promise<ScrapeEntry[] | null> {
+    const leaderboard = await getLatestLeaderboard(kind)
+    if (!leaderboard) return null
+
+    return leaderboard.entries
 }
 
 const MAX_TRAJECTORY_POINTS = 80
