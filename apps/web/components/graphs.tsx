@@ -3,6 +3,7 @@
  */
 
 "use client"
+
 import { ISODate, Kind, LeaderboardEntry, ScrapeEntry, TrajectoryPoint } from "@/lib/models"
 import React, { useEffect, useMemo, useState } from "react"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart"
@@ -304,7 +305,9 @@ function Trajectory({
                     content={
                         <ChartTooltipContent
                             labelFormatter={(_, payload) =>
-                                new Date(payload?.[0]?.payload?.t).toLocaleString()
+                                new Date(payload?.[0]?.payload?.t).toLocaleString("en", {
+                                    timeZoneName: "shortGeneric"
+                                }).replace(",", " @")
                             }
                         />
                     }
@@ -313,11 +316,10 @@ function Trajectory({
                     <Area
                         key={e.uid}
                         dataKey={`u${e.uid}`}
-                        type="step"
+                        type="stepAfter"
                         stroke={userColor(idx)}
                         fillOpacity={0}
                         strokeWidth={1.44}
-                        dot={false}
                         isAnimationActive={false}
                         connectNulls
                     />
@@ -433,11 +435,11 @@ export const GRAPHS: GraphGroup[] = [
         ]
     },
     {
-        title: "Trajectory",
+        title: "Trajectories",
         graphs: [
             tGraph(
                 "t-total-points",
-                "Total points",
+                "User points",
                 "A trajectory of individual user points",
                 "total_points"
             ),
@@ -445,7 +447,7 @@ export const GRAPHS: GraphGroup[] = [
                 "t-avg-time",
                 "Average time",
                 "A trajectory of individual user time averages (s)",
-                "avg_time_s",
+                "avg_time_s"
             ),
             tGraph(
                 "t-acceptance-rate",
