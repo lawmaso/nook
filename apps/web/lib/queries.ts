@@ -136,11 +136,9 @@ export async function getLatestLeaderboard(
     }
 }
 
-export async function getLatestScrapeEntries(kind: Kind): Promise<ScrapeEntry[] | null> {
+export async function getLatestScrapeEntries(kind: Kind): Promise<LeaderboardEntry[] | null> {
     const leaderboard = await getLatestLeaderboard(kind)
-    if (!leaderboard) return null
-
-    return leaderboard.entries
+    return leaderboard?.entries ?? null
 }
 
 const MAX_TRAJECTORY_POINTS = 80
