@@ -65,8 +65,8 @@ export const columns = columnHelper.columns([
         header: ({ column }) => SortedColumn({ column, text: "Avg pts" }),
         cell: ({ row }) => formatDecimal(row.getValue("avg_points"))
     }),
-    columnHelper.accessor("last_active", {
-        header: ({ column }) => SortedColumn({ column, text: "Last active" }),
-        cell: ({ row }) => formatDate(row.getValue("last_active"))
-    }),
+    // columnHelper.accessor("last_active", {
+    //     header: ({ column }) => SortedColumn({ column, text: "Last active" }),
+    //     cell: ({ row }) => formatDate(row.getValue("last_active"))
+    // }),
 ])

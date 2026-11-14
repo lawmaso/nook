@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -8,7 +9,14 @@ import {
     ComboboxItem,
     ComboboxList,
 } from "@/components/ui/combobox"
+
 import { LeaderboardEntry } from "@/lib/models"
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from "../ui/card"
 
 type SelectorProps = {
     entries: LeaderboardEntry[]
@@ -21,28 +29,51 @@ export function Selector({
     entries,
     value,
     onValueChange,
-    placeholder = "Select a user"
+    placeholder = "Select a user",
 }: SelectorProps) {
     return (
-        <Combobox
-            items={entries}
-            value={value}
-            onValueChange={onValueChange}
-            itemToStringLabel={(entry) => `${entry.rank}. ${entry.user.username}`}
-            itemToStringValue={(entry) => String(entry.uid)}
-            isItemEqualToValue={(a, b) => a.uid === b.uid}
-        >
-            <ComboboxInput placeholder={placeholder}/>
-            <ComboboxContent>
-                <ComboboxEmpty>No users found</ComboboxEmpty>
-                <ComboboxList>
-                    {(entry: LeaderboardEntry) => (
-                        <ComboboxItem key={entry.uid} value={entry}>
-                            {`${entry.rank}. ${entry.user.username}`}
-                        </ComboboxItem>
-                    )}
-                </ComboboxList>
-            </ComboboxContent>
-        </Combobox>
+        <Card className="w-full">
+            <CardHeader>
+                <CardTitle>{placeholder}</CardTitle>
+            </CardHeader>
+
+            <CardContent>
+                <Combobox
+                    items={entries}
+                    value={value}
+                    onValueChange={onValueChange}
+                    itemToStringLabel={(entry) =>
+                        `${entry.rank}. ${entry.user.username}`
+                    }
+                    itemToStringValue={(entry) => String(entry.uid)}
+                    isItemEqualToValue={(a, b) => a.uid === b.uid}
+                    filter={(entry: LeaderboardEntry, query: string) =>
+                        entry.user.username
+                            .toLocaleLowerCase()
+                            .includes(query.trim().toLocaleLowerCase())
+                    }
+                >
+                    <ComboboxInput
+                        placeholder="Search username..."
+                        aria-label={placeholder}
+                    />
+
+                    <ComboboxContent>
+                        <ComboboxEmpty>No users found</ComboboxEmpty>
+
+                        <ComboboxList>
+                            {(entry: LeaderboardEntry) => (
+                                <ComboboxItem
+                                    key={entry.uid}
+                                    value={entry}
+                                >
+                                    {`${entry.rank}. ${entry.user.username}`}
+                                </ComboboxItem>
+                            )}
+                        </ComboboxList>
+                    </ComboboxContent>
+                </Combobox>
+            </CardContent>
+        </Card>
     )
 }
