@@ -12,27 +12,15 @@ import { Kind, LeaderboardEntry } from "@/lib/models"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty"
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
+import { Spinner } from "../ui/spinner"
 
 import { columns } from "./columns"
 import { DataTable } from "./data-table"
 import { Selector } from "./selector"
 import { formatDecimal, formatDuration, formatLarge, formatPercent } from "./format"
-import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
-import { Spinner } from "../ui/spinner"
 
 type Selection = LeaderboardEntry | null
-
-function formatSigned(
-    value: number,
-    formatter: (value: number) => string
-) {
-    const sign =
-        value > 0 ? "+" :
-        value < 0 ? "-" :
-        ""
-
-    return `${sign}${formatter(Math.abs(value))}`
-}
 
 export function Calculator() {
     const [kind, setKind] = useState<Kind>("global")
@@ -55,8 +43,8 @@ export function Calculator() {
 
                 let recentEntries = result ?? []
                 setEntries(recentEntries)
-                // setUserOne(recentEntries[0] ?? null)
-                // setUserTwo(recentEntries[1] ?? null)
+                setUserOne(recentEntries[0] ?? null)
+                setUserTwo(recentEntries[1] ?? null)
             })
             .catch((error: unknown) => {
                 console.error()

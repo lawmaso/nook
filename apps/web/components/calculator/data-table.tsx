@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from "react"
+import { cn } from "cn"
 import {
     useTable,
     type ColumnDef,
@@ -18,17 +20,23 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 import { features, type DataTableFeatures } from "./data-table-features"
-import { useState } from "react"
-import { Input } from "../ui/input"
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu"
-import { Button } from "../ui/button"
-import { ScrollArea } from "../ui/scroll-area"
+import { columnLabels } from "./columns"
 
 interface DataTableProps<TData extends RowData> {
     columns: ColumnDef<DataTableFeatures, TData>[]
     data: TData[]
+}
+
+function rowTone(rank: number | undefined) {
+    if (rank === 1) return "bg-primary/20 hover:bg-primary/25 border-1-4 border-1-primary"
+    if (rank === 2) return "bg-char-2/20 hover:bg-chart-2/25 border-1-4 border-1-chart-2"
+    return "odd:bg-card even:bg-muted/50 hover:bg-accent/60 border-1-4 border-1-transparent"
 }
 
 export function DataTable<TData extends RowData>({
@@ -55,60 +63,53 @@ export function DataTable<TData extends RowData>({
             columnVisibility,
             rowSelection
         },
-
     })
 
     return (
-        <div className="h-full min-h-0 max-w-5xl border flex flex-col w-1/2">
-            <ScrollArea className="flex-1 min-h-0">
-                <div className="flex items-center p-4">
-                    <Input
-                        placeholder="Filter UID"
-                        value={(table.getColumn("uid")?.getFilterValue() as string) ?? ""}
-                        onChange={(event) =>
-                            table.getColumn("uid")?.setFilterValue(event.target.value)
-                        }
-                        className="max-w-sm"
-                    />
-                    <DropdownMenu>
-                        <DropdownMenuTrigger render={<Button variant="outline" className="ml-auto" />}>
-                            Columns
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            {table
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col flex-1 overflow-hidden border bg-card shadow-sm">
+            <div className="flex items-center gap-2 border-b bg-secondary/40 p-3">
+                <Input
+                    placeholder="Search username"
+                    value={(table.getColumn("username")?.getFilterValue() as string) ?? ""}
+                    onChange={(event) =>
+                        table.getColumn("username")?.setFilterValue(event.target.value)
+                    }
+                    className="max-w-xs bg-card"
+                    autoComplete="off"
+                    autoCapitalize="off"
+                />
+                <DropdownMenu>
+                    <DropdownMenuTrigger render={<Button variant="outline" className="ml-auto bg-card" />}>
+                        Columns
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        {table
                             .getAllColumns()
-                            .filter(
-                                (column) => column.getCanHide()
-                            )
-                            .map((column) => {
-                                return (
+                            .filter((column) => column.getCanHide())
+                            .map((column) => (
                                 <DropdownMenuCheckboxItem
                                     key={column.id}
                                     checked={column.getIsVisible()}
-                                    onCheckedChange={(value) =>
-                                        column.toggleVisibility(!!value)
-                                    }
+                                    onCheckedChange={(value) => column.toggleVisibility(!!value)}
                                 >
-                                    {column.id}
+                                    {columnLabels[column.id] ?? column.id}
                                 </DropdownMenuCheckboxItem>
-                                )
-                            })}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
+                            ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+            <ScrollArea className="min-h-0 flex-1">
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 z-10 bg-card">
                         {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id}>
-                                {headerGroup.headers.map((header) => {
-                                    return (
-                                        <TableHead key={header.id}>
-                                            {header.isPlaceholder ? null : (
-                                                <table.FlexRender header={header} />
-                                            )}
-                                        </TableHead>
-                                    )
-                                })}
+                            <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                                {headerGroup.headers.map((header) => (
+                                    <TableHead key={header.id} className="h-11 first:pl-5">
+                                        {header.isPlaceholder ? null : (
+                                            <table.FlexRender header={header} />
+                                        )}
+                                    </TableHead>
+                                ))}
                             </TableRow>
                         ))}
                     </TableHeader>
@@ -118,9 +119,13 @@ export function DataTable<TData extends RowData>({
                                 <TableRow
                                     key={row.id}
                                     data-state={row.getIsSelected() && "selected"}
+                                    className={cn(
+                                        "transition-colors",
+                                        // rowTone((row.original as { rank?: number }).rank)
+                                    )}
                                 >
                                     {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id}>
+                                        <TableCell key={cell.id} className="py-3 first:pl-4">
                                             <table.FlexRender cell={cell} />
                                         </TableCell>
                                     ))}
@@ -128,7 +133,7 @@ export function DataTable<TData extends RowData>({
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={columns.length} className="h-24 text-center">
+                                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
                                     No results.
                                 </TableCell>
                             </TableRow>
