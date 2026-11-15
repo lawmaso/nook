@@ -116,19 +116,20 @@ export function Calculator() {
                     </p>
                 )}
 
-                <Selector
-                    entries={entries}
-                    value={userOne}
-                    onValueChange={setUserOne}
-                    placeholder="Select first user"
-                />
-
-                <Selector
-                    entries={entries}
-                    value={userTwo}
-                    onValueChange={setUserTwo}
-                    placeholder="Select second user"
-                />
+                <div className="flex gap-2">
+                    <Selector
+                        entries={entries}
+                        value={userOne}
+                        onValueChange={setUserOne}
+                        placeholder="User 1"
+                    />
+                    <Selector
+                        entries={entries}
+                        value={userTwo}
+                        onValueChange={setUserTwo}
+                        placeholder="User 2"
+                    />
+                </div>
 
                 {comparison ? (
                     <ComparisonResults comparison={comparison} />
@@ -171,8 +172,8 @@ type TableRowData = {
 
 function ComparisonResults({ comparison }: { comparison: ComparisonResult }) {
     const { higher, lower } = comparison 
-    const higherLabel = `[${higher.rank}] @${higher.user.username}`
-    const lowerLabel  = `[${lower.rank}] @${lower.user.username}`
+    const higherLabel = `@${higher.user.username}`
+    const lowerLabel  = `@${lower.user.username}`
 
     const tableRowData: TableRowData[] = [
         {
@@ -218,7 +219,7 @@ function ComparisonResults({ comparison }: { comparison: ComparisonResult }) {
                             <div className="flex flex-col items-center">
                                 <div className="flex items-center gap-2">
                                     <ArrowDownIcon className="h-5 w-5" color="var(--chart-1)" />
-                                    <p className="text-2xl cursor-pointer hover:underline">{formatLarge(comparison.gap)}</p>
+                                    <p className="text-2xl cursor-pointer hover:underline whitespace-nowrap">{formatLarge(comparison.gap)}</p>
                                 </div>
                                 <p className="text-sm">points behind</p>
                             </div>
@@ -236,7 +237,7 @@ function ComparisonResults({ comparison }: { comparison: ComparisonResult }) {
                             <div className="flex flex-col items-center">
                                 <div className="flex items-center gap-2">
                                     <BracketsIcon className="h-5 w-5" color="var(--chart-1)" />
-                                    <p className="text-2xl cursor-pointer hover:underline">
+                                    <p className="text-2xl cursor-pointer hover:underline whitespace-nowrap">
                                         {formatLarge(comparison.minPuzzles)}
                                         {"-"}
                                         {formatLarge(comparison.expectedPuzzles)}
@@ -258,7 +259,7 @@ function ComparisonResults({ comparison }: { comparison: ComparisonResult }) {
                             <div className="flex flex-col items-center">
                                 <div className="flex items-center gap-2">
                                     <ClockArrowRightIcon className="h-5 w-5" color="var(--chart-1)" />
-                                    <p className="text-2xl cursor-pointer hover:underline">{formatDuration(comparison.expectedTime)}</p>
+                                    <p className="text-2xl cursor-pointer hover:underline whitespace-nowrap">{formatDuration(comparison.expectedTime)}</p>
                                 </div>
                                 <p className="text-sm">to close gap</p>
                             </div>
