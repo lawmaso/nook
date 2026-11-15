@@ -4,10 +4,9 @@
 
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { ArrowDownIcon, BracketsIcon, ClockArrowRightIcon, UsersIcon } from "lucide-react"
-import { getLatestScrapeEntries } from "@/lib/queries"
-import { Kind, LeaderboardEntry } from "@/lib/models"
+import { ISODate, Kind, LeaderboardEntry } from "@/lib/models"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover"
@@ -19,57 +18,47 @@ import { columns } from "./columns"
 import { DataTable } from "./data-table"
 import { Selector } from "./selector"
 import { formatDecimal, formatDuration, formatLarge, formatPercent } from "./format"
+import { useLatestLeaderboard } from "@/hooks/useLatestLeaderboard"
 
 type Selection = LeaderboardEntry | null
+type SelectedIds = {
+    userOne: number | null
+    userTwo: number | null
+}
+
+const INITIAL_KIND: Kind = "global"
+const NO_ENTRIES: LeaderboardEntry[] = []
+const NO_SELECTION: SelectedIds = { userOne: null, userTwo: null }
+
+function formatAge(iso: ISODate): string {
+    const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000))
+
+    if (minutes < 1) return "just now"
+    if (minutes < 60) return `${minutes} minutes ago`
+    return `${Math.round(minutes / 60)}h ago`
+}
 
 export function Calculator() {
-    const [kind, setKind] = useState<Kind>("global")
-    const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null)
-    const [userOne, setUserOne] = useState<Selection>(null)
-    const [userTwo, setUserTwo] = useState<Selection>(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const [kind, setKind] = useState<Kind>(INITIAL_KIND)
+    const [selected, setSelected] = useState<SelectedIds>(NO_SELECTION)
 
-    useEffect(() => {
-        let cancelled = false
-        setLoading(true)
-        setError(null)
-        setUserOne(null)
-        setUserTwo(null)
+    const { data, isFetching, isError, error } = useLatestLeaderboard(kind)
+    const entries = data?.entries ?? NO_ENTRIES
 
-        getLatestScrapeEntries(kind)
-            .then((result) => {
-                if (cancelled) return
+    const userOne: Selection = useMemo(
+        () => entries.find((e) => e.user.uid == selected.userOne) ?? entries[0] ?? null,
+        [entries, selected.userOne]
+    )
 
-                let recentEntries = result ?? []
-                setEntries(recentEntries)
-                setUserOne(recentEntries[0] ?? null)
-                setUserTwo(recentEntries[1] ?? null)
-            })
-            .catch((error: unknown) => {
-                console.error()
-
-                if (!cancelled) {
-                    setEntries([])
-                    setError(error instanceof Error
-                        ? error.message
-                        : "Couldn't load entries"
-                    )
-                }
-            })
-            .finally(() => {
-                setLoading(false)
-            })
-
-        return () => {
-            cancelled = true
-        }
-    }, [kind])
+    const userTwo: Selection = useMemo(
+        () => entries.find((e) => e.user.uid == selected.userTwo) ?? entries[1] ?? null,
+        [entries, selected.userTwo]
+    )
 
     const comparison = useMemo((): ComparisonResult | null => {
         if (!userOne || !userTwo) return null
 
-        // NOTE: lower is the user with less points
+        // NOTE: lower is the user with a "lower" rank
         const [lower, higher] = userOne.rank > userTwo.rank
             ? [userOne, userTwo]
             : [userTwo, userOne]
@@ -81,7 +70,7 @@ export function Calculator() {
         const expectedPuzzles = gap / lower.avg_points
         const minTime         = minPuzzles * lower.avg_time_s
         const expectedTime    = expectedPuzzles * lower.avg_time_s
-        
+
         return {
             lower,
             higher,
@@ -94,11 +83,11 @@ export function Calculator() {
     }, [userOne, userTwo])
 
     function handleKind(next: string) {
-        const k = next as Kind
-        setKind(k)
+        setKind(next as Kind)
+        setSelected(NO_SELECTION)
     }
 
-    if (!entries || loading) {
+    if (isFetching) {
         return (
             <Empty className="border h-full">
                 <EmptyHeader>
@@ -122,30 +111,40 @@ export function Calculator() {
             />
 
             <div className="flex min-w-0 flex-1 flex-col gap-4">
-                {error && (
+                {isError && (
                     <p className="text-sm text-destructive">
-                        {error}
+                        {error instanceof Error ? error.message : "Couldn't load leaderboard"}
+                        {entries.length > 0 && ". Showing latest leaderboard"}
                     </p>
                 )}
 
-                <div>
-                    <Tabs value={kind} onValueChange={handleKind}>
+                <Tabs value={kind} onValueChange={handleKind}>
                     <TabsList className="w-full">
                         <TabsTrigger value="monthly">Monthly</TabsTrigger>
                         <TabsTrigger value="global">Global</TabsTrigger>
                     </TabsList>
                 </Tabs>
-                </div>
+
+                {data && (
+                    <p className="text-xs text-muted-foreground">
+                        Scraped {formatAge(data.scrape.scraped_at)}
+                    </p>
+                )}
+
                 <div className="flex gap-2">
                     <Selector
                         entries={entries}
                         value={userOne}
-                        onValueChange={setUserOne}
-                    />
+                        onValueChange={(entry) => 
+                            setSelected((s) => ({ ...s, userOne: entry?.user.uid ?? null }))
+                        }
+                        />
                     <Selector
                         entries={entries}
                         value={userTwo}
-                        onValueChange={setUserTwo}
+                        onValueChange={(entry) => 
+                            setSelected((s) => ({ ...s, userTwo: entry?.user.uid ?? null }))
+                        }
                     />
                 </div>
 
