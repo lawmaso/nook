@@ -1,29 +1,22 @@
+/**
+ * @file calculator.tsx
+ */
 
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { ArrowDownIcon, BracketsIcon, ClockArrowRightIcon, UsersIcon } from "lucide-react"
+import { getLatestScrapeEntries } from "@/lib/queries"
+import { LeaderboardEntry } from "@/lib/models"
+
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
+import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty"
 
 import { columns } from "./columns"
 import { DataTable } from "./data-table"
 import { Selector } from "./selector"
-
-import { getLatestScrapeEntries } from "@/lib/queries"
-import { LeaderboardEntry } from "@/lib/models"
-
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "../ui/card"
-
-import {
-    formatDecimal,
-    formatDuration,
-    formatLarge,
-    formatSeconds,
-} from "./format"
+import { formatDecimal, formatDuration, formatLarge, formatPercent } from "./format"
 
 type Selection = LeaderboardEntry | null
 
@@ -41,29 +34,31 @@ function formatSigned(
 
 export function Calculator() {
     const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null)
-    const [first, setFirst] = useState<Selection>(null)
-    const [second, setSecond] = useState<Selection>(null)
-    const [loadError, setLoadError] = useState<string | null>(null)
+    const [userOne, setUserOne] = useState<Selection>(null)
+    const [userTwo, setUserTwo] = useState<Selection>(null)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         let cancelled = false
 
-        getLatestScrapeEntries("monthly")
+        getLatestScrapeEntries("global")
             .then((result) => {
                 if (cancelled) return
 
-                const loadedEntries = result ?? []
-
-                setEntries(loadedEntries)
-                setFirst(loadedEntries[0] ?? null)
-                setSecond(loadedEntries[1] ?? null)
+                let recentEntries = result ?? []
+                setEntries(recentEntries)
+                // setUserOne(recentEntries[0] ?? null)
+                // setUserTwo(recentEntries[1] ?? null)
             })
             .catch((error: unknown) => {
-                console.error("Failed to load leaderboard entries:", error)
+                console.error()
 
                 if (!cancelled) {
                     setEntries([])
-                    setLoadError("Failed to load leaderboard entries.")
+                    setError(error instanceof Error
+                        ? error.message
+                        : "Couldn't load entries"
+                    )
                 }
             })
 
@@ -72,58 +67,32 @@ export function Calculator() {
         }
     }, [])
 
-    // Always compare the lower-scoring user against the higher-scoring user,
-    // regardless of which selector they were chosen in.
-    const comparison = useMemo(() => {
-        if (!first || !second) return null
+    const comparison = useMemo((): ComparisonResult | null => {
+        if (!userOne || !userTwo) return null
 
-        const [lo, hi] =
-            first.total_points <= second.total_points
-                ? [first, second]
-                : [second, first]
+        // NOTE: lower is the user with less points
+        const [lower, higher] = userOne.rank > userTwo.rank
+            ? [userOne, userTwo]
+            : [userTwo, userOne]
 
-        const pointsGap = Math.max(
-            0,
-            hi.total_points - lo.total_points
-        )
+        const MAX_POINTS_PER_PUZZLE = 563
 
-        // Minimum possible puzzle count, assuming 563 points per puzzle.
-        const minimumPuzzles = pointsGap / 563.0
-
-        // Expected puzzle count, based on the lower-scoring user's average.
-        const expectedPuzzles =
-            Number.isFinite(lo.avg_points) && lo.avg_points > 0
-                ? pointsGap / lo.avg_points
-                : null
-
-        // Treat avg_time_s as seconds per puzzle.
-        const avgTimeS =
-            Number.isFinite(lo.avg_time_s) && lo.avg_time_s >= 0
-                ? lo.avg_time_s
-                : null
-
-        // Estimate the time required to complete each puzzle estimate.
-        const minimumTimeS =
-            avgTimeS !== null
-                ? minimumPuzzles * avgTimeS
-                : null
-
-        const expectedTimeS =
-            avgTimeS !== null && expectedPuzzles !== null
-                ? expectedPuzzles * avgTimeS
-                : null
-
+        const gap             = higher.total_points - lower.total_points
+        const minPuzzles      = gap / MAX_POINTS_PER_PUZZLE
+        const expectedPuzzles = gap / lower.avg_points
+        const minTime         = minPuzzles * lower.avg_time_s
+        const expectedTime    = expectedPuzzles * lower.avg_time_s
+        
         return {
-            lo,
-            hi,
-            pointsGap,
-            minimumPuzzles,
+            lower,
+            higher,
+            gap,
+            minPuzzles,
             expectedPuzzles,
-            avgTimeS,
-            minimumTimeS,
-            expectedTimeS,
+            minTime,
+            expectedTime
         }
-    }, [first, second])
+    }, [userOne, userTwo])
 
     if (entries === null) {
         return (
@@ -141,267 +110,203 @@ export function Calculator() {
             />
 
             <div className="flex min-w-0 flex-1 flex-col gap-4">
-                {loadError && (
+                {error && (
                     <p className="text-sm text-destructive">
-                        {loadError}
+                        {error}
                     </p>
                 )}
 
                 <Selector
                     entries={entries}
-                    value={first}
-                    onValueChange={setFirst}
+                    value={userOne}
+                    onValueChange={setUserOne}
                     placeholder="Select first user"
                 />
 
                 <Selector
                     entries={entries}
-                    value={second}
-                    onValueChange={setSecond}
+                    value={userTwo}
+                    onValueChange={setUserTwo}
                     placeholder="Select second user"
                 />
 
                 {comparison ? (
-                    <>
-                        <ComparisonResults comparison={comparison} />
-                        <CatchUpEstimate comparison={comparison} />
-                    </>
+                    <ComparisonResults comparison={comparison} />
                 ) : (
-                    <Card>
-                        <CardContent className="pt-6 text-sm text-muted-foreground">
-                            Select two users to compare their leaderboard
-                            statistics.
-                        </CardContent>
-                    </Card>
+                    <Empty className="border border-solid">
+                        <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                                <UsersIcon />
+                            </EmptyMedia>
+                            <EmptyTitle>No users selected</EmptyTitle>
+                            <EmptyDescription className="text-sm">
+                                Select two users to compare individual metrics and estimate
+                                the gap between them
+                            </EmptyDescription>
+                        </EmptyHeader>
+                    </Empty>
                 )}
             </div>
         </div>
     )
 }
 
-// Displays the difference between the two selected users.
-function ComparisonResults({
-    comparison,
-}: {
-    comparison: {
-        lo: LeaderboardEntry
-        hi: LeaderboardEntry
-        pointsGap: number
-        minimumPuzzles: number
-        expectedPuzzles: number | null
-        avgTimeS: number | null
-        minimumTimeS: number | null
-        expectedTimeS: number | null
-    }
-}) {
-    const { lo, hi } = comparison
-
-    const loLabel = `${lo.rank}. ${lo.user.username}`
-    const hiLabel = `${hi.rank}. ${hi.user.username}`
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>User comparison</CardTitle>
-                <CardDescription>
-                    Differences are calculated as Hi − Lo.
-                </CardDescription>
-            </CardHeader>
-
-            <CardContent>
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[28rem] text-sm">
-                        <thead>
-                            <tr className="text-muted-foreground">
-                                <th className="px-2 py-2 text-left font-medium">
-                                    Metric
-                                </th>
-                                <th className="px-2 py-2 text-right font-medium">
-                                    {loLabel}
-                                </th>
-                                <th className="px-2 py-2 text-right font-medium">
-                                    {hiLabel}
-                                </th>
-                                <th className="px-2 py-2 text-right font-medium">
-                                    Difference
-                                </th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            <tr className="border-t">
-                                <th className="px-2 py-3 text-left font-medium">
-                                    Average points
-                                </th>
-                                <td className="px-2 py-3 text-right tabular-nums">
-                                    {formatDecimal(lo.avg_points)}
-                                </td>
-                                <td className="px-2 py-3 text-right tabular-nums">
-                                    {formatDecimal(hi.avg_points)}
-                                </td>
-                                <td className="px-2 py-3 text-right tabular-nums font-medium">
-                                    {formatSigned(
-                                        hi.avg_points - lo.avg_points,
-                                        formatDecimal
-                                    )}
-                                </td>
-                            </tr>
-
-                            <tr className="border-t">
-                                <th className="px-2 py-3 text-left font-medium">
-                                    Average time
-                                </th>
-                                <td className="px-2 py-3 text-right tabular-nums">
-                                    {formatSeconds(lo.avg_time_s)}
-                                </td>
-                                <td className="px-2 py-3 text-right tabular-nums">
-                                    {formatSeconds(hi.avg_time_s)}
-                                </td>
-                                <td className="px-2 py-3 text-right tabular-nums font-medium">
-                                    {formatSigned(
-                                        hi.avg_time_s - lo.avg_time_s,
-                                        formatSeconds
-                                    )}
-                                </td>
-                            </tr>
-
-                            <tr className="border-t">
-                                <th className="px-2 py-3 text-left font-medium">
-                                    Total points
-                                </th>
-                                <td className="px-2 py-3 text-right tabular-nums">
-                                    {formatLarge(lo.total_points)}
-                                </td>
-                                <td className="px-2 py-3 text-right tabular-nums">
-                                    {formatLarge(hi.total_points)}
-                                </td>
-                                <td className="px-2 py-3 text-right tabular-nums font-medium">
-                                    {formatSigned(
-                                        hi.total_points - lo.total_points,
-                                        formatLarge
-                                    )}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </CardContent>
-        </Card>
-    )
+type ComparisonResult = {
+    lower:           LeaderboardEntry
+    higher:          LeaderboardEntry
+    gap:             number
+    minPuzzles:      number
+    expectedPuzzles: number
+    minTime:         number
+    expectedTime:    number
 }
 
-// Estimates how many puzzles and how much time the lower-scoring user
-// needs to close the total-points gap.
-function CatchUpEstimate({
-    comparison,
-}: {
-    comparison: {
-        lo: LeaderboardEntry
-        hi: LeaderboardEntry
-        pointsGap: number
-        minimumPuzzles: number
-        expectedPuzzles: number | null
-        avgTimeS: number | null
-        minimumTimeS: number | null
-        expectedTimeS: number | null
-    }
-}) {
-    const {
-        lo,
-        hi,
-        pointsGap,
-        minimumPuzzles,
-        expectedPuzzles,
-        avgTimeS,
-        minimumTimeS,
-        expectedTimeS,
-    } = comparison
+type TableRowData = {
+    category:         string
+    higherUserMetric: number
+    lowerUserMetric:  number
+    formatter:        (v: number) => string
+    invert?:          boolean
+}
+
+function ComparisonResults({ comparison }: { comparison: ComparisonResult }) {
+    const { higher, lower } = comparison 
+    const higherLabel = `[${higher.rank}] @${higher.user.username}`
+    const lowerLabel  = `[${lower.rank}] @${lower.user.username}`
+
+    const tableRowData: TableRowData[] = [
+        {
+            category: "Total points",
+            higherUserMetric: higher.total_points,
+            lowerUserMetric: lower.total_points,
+            formatter: formatLarge
+        },
+        {
+            category: "Solved",
+            higherUserMetric: higher.solved,
+            lowerUserMetric: lower.solved,
+            formatter: formatLarge
+        },
+        {
+            category: "Average points",
+            higherUserMetric: higher.avg_points,
+            lowerUserMetric: lower.avg_points,
+            formatter: formatDecimal
+        },
+        {
+            category: "Average time",
+            higherUserMetric: higher.avg_time_s,
+            lowerUserMetric: lower.avg_time_s,
+            formatter: formatDuration,
+            invert: true
+        },
+        {
+            category: "Acceptance",
+            higherUserMetric: higher.acceptance_rate,
+            lowerUserMetric: lower.acceptance_rate,
+            formatter: formatPercent
+        },
+
+    ]
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Catch-up estimate</CardTitle>
+        <div className="flex flex-row-reverse border p-4">
+            <div className="w-xs flex items-center justify-center">
+                <div className="flex flex-col gap-3">
+                    <Popover>
+                        <PopoverTrigger nativeButton={false} delay={10} closeDelay={100} render={
+                            <div className="flex flex-col items-center">
+                                <div className="flex items-center gap-2">
+                                    <ArrowDownIcon className="h-5 w-5" color="var(--chart-1)" />
+                                    <p className="text-2xl cursor-pointer hover:underline">{formatLarge(comparison.gap)}</p>
+                                </div>
+                                <p className="text-sm">points behind</p>
+                            </div>
+                        }/>
+                        <PopoverContent className="flex w-64 flex-col gap-0.5">
+                            <div>
+                                <strong className="whitespace-nowrap font-bold">@{lower.user.username}{" "}</strong>
+                                is this many points behind <strong className="whitespace-nowrap font-bold">@{higher.user.username}{" "}</strong>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
 
-                <CardDescription>
-                    {hi.user.username} is ahead of {lo.user.username} by{" "}
-                    {formatLarge(pointsGap)} points.
+                    <Popover>
+                        <PopoverTrigger nativeButton={false} delay={10} closeDelay={100} render={
+                            <div className="flex flex-col items-center">
+                                <div className="flex items-center gap-2">
+                                    <BracketsIcon className="h-5 w-5" color="var(--chart-1)" />
+                                    <p className="text-2xl cursor-pointer hover:underline">
+                                        {formatLarge(comparison.minPuzzles)}
+                                        {"-"}
+                                        {formatLarge(comparison.expectedPuzzles)}
+                                    </p>
+                                </div>
+                                <p className="text-sm">puzzles to close gap</p>
+                            </div>
+                        }/>
+                        <PopoverContent className="flex w-64 flex-col gap-0.5">
+                            <div>
+                                An estimate of the puzzles <strong className="whitespace-nowrap font-bold">@{lower.user.username}{" "}</strong>
+                                must complete to reach <strong className="whitespace-nowrap font-bold">@{higher.user.username}{" "}</strong>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
 
-                    {avgTimeS !== null
-                        ? ` Time estimates use ${formatSeconds(avgTimeS)} per puzzle from ${lo.user.username}.`
-                        : " A valid average time is required to estimate catch-up time."}
-                </CardDescription>
-            </CardHeader>
-
-            <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="border p-4">
-                        <p className="text-sm text-muted-foreground">
-                            Minimum estimate
-                        </p>
-
-                        <p className="mt-2 text-2xl font-semibold tabular-nums">
-                            {formatDecimal(minimumPuzzles)}
-                        </p>
-
-                        <p className="text-sm text-muted-foreground">
-                            puzzles
-                        </p>
-
-                        <div className="my-3 border-t" />
-
-                        <p className="text-sm text-muted-foreground">
-                            Estimated time
-                        </p>
-
-                        <p className="mt-1 text-lg font-semibold tabular-nums">
-                            {minimumTimeS !== null
-                                ? formatDuration(minimumTimeS)
-                                : "—"}
-                        </p>
-
-                        <p className="mt-2 text-xs text-muted-foreground">
-                            Points gap ÷ 563.0
-                        </p>
-                    </div>
-
-                    <div className="border p-4">
-                        <p className="text-sm text-muted-foreground">
-                            Expected estimate
-                        </p>
-
-                        <p className="mt-2 text-2xl font-semibold tabular-nums">
-                            {expectedPuzzles !== null
-                                ? formatDecimal(expectedPuzzles)
-                                : "—"}
-                        </p>
-
-                        <p className="text-sm text-muted-foreground">
-                            puzzles
-                        </p>
-
-                        <div className="my-3 border-t" />
-
-                        <p className="text-sm text-muted-foreground">
-                            Estimated time
-                        </p>
-
-                        <p className="mt-1 text-lg font-semibold tabular-nums">
-                            {expectedTimeS !== null
-                                ? formatDuration(expectedTimeS)
-                                : "—"}
-                        </p>
-
-                        <p className="mt-2 text-xs text-muted-foreground">
-                            Points gap ÷ {lo.user.username}'s average points
-                        </p>
-                    </div>
+                    <Popover>
+                        <PopoverTrigger nativeButton={false} delay={10} closeDelay={100} render={
+                            <div className="flex flex-col items-center">
+                                <div className="flex items-center gap-2">
+                                    <ClockArrowRightIcon className="h-5 w-5" color="var(--chart-1)" />
+                                    <p className="text-2xl cursor-pointer hover:underline">{formatDuration(comparison.expectedTime)}</p>
+                                </div>
+                                <p className="text-sm">to close gap</p>
+                            </div>
+                        }/>
+                        <PopoverContent className="flex w-64 flex-col gap-0.5">
+                            <div>
+                                An estimate of the time gap between <strong className="whitespace-nowrap font-bold">@{lower.user.username}{" "}</strong>
+                                and <strong className="whitespace-nowrap font-bold">@{higher.user.username}{" "}</strong>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                 </div>
+            </div>
 
-                <p className="mt-4 text-xs text-muted-foreground">
-                    These are estimates based on the selected lower-scoring
-                    user's current averages, not guaranteed completion times.
-                </p>
-            </CardContent>
-        </Card>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="font-bold text-lg">Metric</TableHead>
+                        <TableHead className="font-bold text-lg">{higherLabel}</TableHead>
+                        <TableHead className="font-bold text-lg">{lowerLabel}</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {tableRowData.map((row) => {
+                        const higherUserLabel = row.formatter(row.higherUserMetric)
+                        const lowerUserLabel  = row.formatter(row.lowerUserMetric)
+
+                        const isEqual = row.higherUserMetric == row.lowerUserMetric
+                        const isHigherBetter = !row.invert
+                            ? row.higherUserMetric > row.lowerUserMetric
+                            : row.higherUserMetric < row.lowerUserMetric
+
+                        const baseStyle   = "text-sm font-bold"
+                        const betterStyle = `${baseStyle} text-green-400`
+                        const worseStyle  = `${baseStyle} text-red-400`
+
+                        return (
+                            <TableRow key={row.category}>
+                                <TableCell className="text-sm">{row.category}</TableCell>
+                                {/* <TableCell className={isEqual ? "text-sm" : (isHigherBetter ? betterStyle : worseStyle)}>{higherUserLabel}</TableCell> */}
+                                {/* <TableCell className={isEqual ? "text-sm" : (isHigherBetter ? worseStyle : betterStyle)}>{lowerUserLabel}</TableCell> */}
+                                <TableCell className="text-sm">{higherUserLabel}</TableCell>
+                                <TableCell className="text-sm">{lowerUserLabel}</TableCell>
+                            </TableRow>
+                        )
+                    })}
+                </TableBody>
+            </Table>
+        </div>
     )
 }

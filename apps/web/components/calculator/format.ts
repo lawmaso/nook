@@ -1,7 +1,7 @@
 const ACCEPTANCE_IS_FRACTION = false
 
 const intFmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 })
-const decimalFmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 })
+const decimalFmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 })
 
 export const formatLarge = (n: number) => intFmt.format(n)
 export const formatDecimal = (n: number) => decimalFmt.format(n)
