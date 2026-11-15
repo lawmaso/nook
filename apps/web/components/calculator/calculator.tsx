@@ -7,16 +7,18 @@
 import { useEffect, useMemo, useState } from "react"
 import { ArrowDownIcon, BracketsIcon, ClockArrowRightIcon, UsersIcon } from "lucide-react"
 import { getLatestScrapeEntries } from "@/lib/queries"
-import { LeaderboardEntry } from "@/lib/models"
+import { Kind, LeaderboardEntry } from "@/lib/models"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty"
 
 import { columns } from "./columns"
 import { DataTable } from "./data-table"
 import { Selector } from "./selector"
 import { formatDecimal, formatDuration, formatLarge, formatPercent } from "./format"
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
+import { Spinner } from "../ui/spinner"
 
 type Selection = LeaderboardEntry | null
 
@@ -33,15 +35,21 @@ function formatSigned(
 }
 
 export function Calculator() {
+    const [kind, setKind] = useState<Kind>("global")
     const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null)
     const [userOne, setUserOne] = useState<Selection>(null)
     const [userTwo, setUserTwo] = useState<Selection>(null)
+    const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         let cancelled = false
+        setLoading(true)
+        setError(null)
+        setUserOne(null)
+        setUserTwo(null)
 
-        getLatestScrapeEntries("global")
+        getLatestScrapeEntries(kind)
             .then((result) => {
                 if (cancelled) return
 
@@ -61,11 +69,14 @@ export function Calculator() {
                     )
                 }
             })
+            .finally(() => {
+                setLoading(false)
+            })
 
         return () => {
             cancelled = true
         }
-    }, [])
+    }, [kind])
 
     const comparison = useMemo((): ComparisonResult | null => {
         if (!userOne || !userTwo) return null
@@ -94,11 +105,24 @@ export function Calculator() {
         }
     }, [userOne, userTwo])
 
-    if (entries === null) {
+    function handleKind(next: string) {
+        const k = next as Kind
+        setKind(k)
+    }
+
+    if (!entries || loading) {
         return (
-            <div className="p-4 text-sm text-muted-foreground">
-                Loading leaderboard...
-            </div>
+            <Empty className="border h-full">
+                <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                        <Spinner />
+                    </EmptyMedia>
+                    <EmptyTitle>Loading leaderboard</EmptyTitle>
+                    <EmptyDescription className="text-sm">
+                        Please wait while the leaderboard loads
+                    </EmptyDescription>
+                </EmptyHeader>
+            </Empty>
         )
     }
 
@@ -116,18 +140,24 @@ export function Calculator() {
                     </p>
                 )}
 
+                <div>
+                    <Tabs value={kind} onValueChange={handleKind}>
+                    <TabsList className="w-full">
+                        <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                        <TabsTrigger value="global">Global</TabsTrigger>
+                    </TabsList>
+                </Tabs>
+                </div>
                 <div className="flex gap-2">
                     <Selector
                         entries={entries}
                         value={userOne}
                         onValueChange={setUserOne}
-                        placeholder="User 1"
                     />
                     <Selector
                         entries={entries}
                         value={userTwo}
                         onValueChange={setUserTwo}
-                        placeholder="User 2"
                     />
                 </div>
 

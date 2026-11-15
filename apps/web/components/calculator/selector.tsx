@@ -20,14 +20,12 @@ type SelectorProps = {
     entries: LeaderboardEntry[]
     value: LeaderboardEntry | null
     onValueChange: (entry: LeaderboardEntry | null) => void
-    placeholder?: string
 }
 
 export function Selector({
     entries,
     value,
-    onValueChange,
-    placeholder = "Select a user",
+    onValueChange
 }: SelectorProps) {
     return (
         <div className="w-full">
@@ -46,10 +44,7 @@ export function Selector({
                         .includes(query.trim().toLocaleLowerCase())
                 }
             >
-                <ComboboxInput
-                    placeholder="Search username..."
-                    aria-label={placeholder}
-                />
+                <ComboboxInput placeholder="Select user..." />
 
                 <ComboboxContent>
                     <ComboboxEmpty>No users found</ComboboxEmpty>
