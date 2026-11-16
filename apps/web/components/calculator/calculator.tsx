@@ -5,7 +5,7 @@
 "use client"
 
 import { ReactNode, useMemo, useState } from "react"
-import { ArrowDownIcon, BracketsIcon, ClockArrowRightIcon, UsersIcon } from "lucide-react"
+import { ArrowDownIcon, BracketsIcon, ClockArrowDownIcon, UsersIcon } from "lucide-react"
 import { ISODate, Kind, LeaderboardEntry } from "@/lib/models"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
@@ -128,7 +128,7 @@ export function Calculator() {
                 )}
             </div>
 
-            <div className="flex min-w-0 flex-col gap-4 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto">
+            <div className="flex min-w-0 flex-col gap-4 lg:col-start-2 lg:row-start-2 lg:min-h-0">
                 <div className="flex flex-col gap-2 sm:flex-row">
                     <div className="min-w-0 sm:flex-1">
                         <Selector
@@ -167,91 +167,6 @@ export function Calculator() {
             </div>
         </div>
     )
-
-    // return (
-    //     <div className="h-full min-h-0 flex gap-4 overflow-y-auto sm:flex-col lg:overflow-visible">
-    //         <div className="flex h-96 min-h-0 shrink-0 flex-col overflow-auto lg:order-1 lg:h-auto lg:shrink">
-    //             {isFetching ? (
-    //                 <Empty className="h-full min-h-64 border border-solid">
-    //                     <EmptyHeader>
-    //                         <EmptyMedia variant="icon">
-    //                             <Spinner />
-    //                         </EmptyMedia>
-    //                         <EmptyTitle>Loading leaderboard</EmptyTitle>
-    //                         <EmptyDescription className="text-sm">
-    //                             Please wait while the leaderboard loads
-    //                         </EmptyDescription>
-    //                     </EmptyHeader>
-    //                 </Empty>
-    //             ) : (
-    //                 <DataTable
-    //                     columns={columns}
-    //                     data={entries}
-    //                 />
-    //             )}
-    //         </div>
-
-    //         <div className="flex min-w-0 shrink-0 flex-col gap-4 lg:order-2 lg:flex-1 lg:shrink">
-    //             {isError && (
-    //                 <p className="text-sm text-destructive">
-    //                     {error instanceof Error ? error.message : "Couldn't load leaderboard"}
-    //                     {entries.length > 0 && ". Showing latest leaderboard"}
-    //                 </p>
-    //             )}
-
-    //             <Tabs value={kind} onValueChange={handleKind}>
-    //                 <TabsList className="w-full">
-    //                     <TabsTrigger value="monthly">Monthly</TabsTrigger>
-    //                     <TabsTrigger value="global">Global</TabsTrigger>
-    //                 </TabsList>
-    //             </Tabs>
-
-    //             {data && (
-    //                 <p className="-mt-2 text-xs text-muted-foreground">
-    //                     Scraped {formatAge(data.scrape.scraped_at)}
-    //                 </p>
-    //             )}
-
-    //             <div className="flex flex-col gap-2 sm:flex-row">
-    //                 <div className="min-w-0 sm:flex-1">
-    //                     <Selector
-    //                         entries={entries}
-    //                         value={userOne}
-    //                         onValueChange={(entry) => 
-    //                             setSelected((s) => ({ ...s, userOne: entry?.user.uid ?? null }))
-    //                         }
-    //                         />
-    //                 </div>
-    //                 <div className="min-w-0 sm:flex-1">
-    //                     <Selector
-    //                         entries={entries}
-    //                         value={userTwo}
-    //                         onValueChange={(entry) => 
-    //                             setSelected((s) => ({ ...s, userTwo: entry?.user.uid ?? null }))
-    //                         }
-    //                     />
-    //                 </div>
-    //             </div>
-
-    //             {comparison ? (
-    //                 <ComparisonResults comparison={comparison} />
-    //             ) : (
-    //                 <Empty className="border border-solid">
-    //                     <EmptyHeader>
-    //                         <EmptyMedia variant="icon">
-    //                             <UsersIcon />
-    //                         </EmptyMedia>
-    //                         <EmptyTitle>No users selected</EmptyTitle>
-    //                         <EmptyDescription className="text-sm">
-    //                             Select two users to compare individual metrics and estimate
-    //                             the gap between them
-    //                         </EmptyDescription>
-    //                     </EmptyHeader>
-    //                 </Empty>
-    //             )}
-    //         </div>
-    //     </div>
-    // )
 }
 
 type ComparisonResult = {
@@ -291,8 +206,8 @@ function Stat({ icon: Icon, label, values, formatter, description }: StatProps) 
         <Popover>
             <PopoverTrigger nativeButton={false} delay={10} closeDelay={100} render={
                 <div className="flex min-w-0 flex-col items-center text-center">
-                    <div className="flex flex-col items-center gap-1 sm:flex-row sm:gap-2">
-                        <Icon className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" color="var(--chart-1)" />
+                    <div className="flex items-center gap-1 sm:flex-row sm:gap-2">
+                        <Icon className="h-6 w-6 sm:h-6 sm:w-6" color="var(--chart-1)" />
                         <p className="cursor-pointer text-lg hover:underline sm:text-2xl">{value}</p>
                     </div>
                     <p className="text-xs sm:text-sm">{label}</p>
@@ -362,7 +277,7 @@ function ComparisonResults({ comparison }: { comparison: ComparisonResult }) {
             description: <>An estimate of the puzzles {lowerHandle} must complete to reach {higherHandle}</>
         },
         {
-            icon: ClockArrowRightIcon,
+            icon: ClockArrowDownIcon,
             label: "to close gap",
             values: [comparison.expectedTime],
             formatter: formatDuration,
@@ -392,7 +307,7 @@ function ComparisonResults({ comparison }: { comparison: ComparisonResult }) {
                 </TableBody>
             </Table>
 
-            <div className="grid grid-cols-3 items-start gap-2 2xl:flex 2xl:w-xs 2xl:flex-col 2xl:items-center 2xl:justify-center 2xl:gap-3">
+            <div className="grid grid-cols-1 items-start gap-2 2xl:flex 2xl:w-xs 2xl:flex-col 2xl:items-center 2xl:justify-center 2xl:gap-3">
                 {statData.map((stat) => (
                     <Stat key={stat.label} {...stat} />
                 ))}
