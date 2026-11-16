@@ -90,16 +90,18 @@ function NBar({
                     dataKey="name"
                     type="category"
                     height={80}
-                    angle={-30}
+                    angle={-90}
                     textAnchor="end"
                     interval={n <= 25
                         ? 0
-                        : 1
+                        : 5
                     }
                 />
                 <YAxis
                     type="number"
                     tickFormatter={(v) => compact.format(v)}
+                    domain={["auto", "auto"]}
+                    width={45}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar dataKey="value" fill="var(--chart-3)" />
@@ -161,9 +163,10 @@ function Histogram({
                 <CartesianGrid />
                 <XAxis
                     dataKey="start"
-                    minTickGap={20}
+                    minTickGap={5}
+                    height={20}
                 />
-                <YAxis />
+                <YAxis width={25} />
                 <ChartTooltip
                     content={
                         <ChartTooltipContent

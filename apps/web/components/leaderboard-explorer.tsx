@@ -89,8 +89,8 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
     }
 
     return (
-        <div className="grid h-full min-h-0 gap-6 lg:grid-cols-[auto_1fr]">
-            <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 gap-4 lg:h-full lg:min-h-0 lg:grid-cols-[auto_minmax(0,1fr)] lg:gap-6">
+            <div className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto">
                 <Tabs value={kind} onValueChange={handleKind}>
                     <TabsList className="w-full">
                         <TabsTrigger value="monthly">Monthly</TabsTrigger>
@@ -98,29 +98,29 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
                     </TabsList>
                 </Tabs>
 
-                <Calendar
-                    mode="range"
-                    selected={dateRange}
-                    defaultMonth={period ? parseISODate(period) : undefined }
-                    disabled={(d: Date) => {
-                        const periodExists = periodByMonth.has(dateMonthKey(d))
-                        return !periodExists
-                    }}
-                    captionLayout="dropdown"
-                    className="border"
-                />
+                <div className="max-w-full overflow-x-auto">
+                    <Calendar
+                        mode="range"
+                        selected={dateRange}
+                        defaultMonth={period ? parseISODate(period) : undefined}
+                        disabled={(d: Date) => !periodByMonth.has(dateMonthKey(d))}
+                        captionLayout="dropdown"
+                        className="mx-auto border lg:mx-0"
+                    />
+                </div>
             </div>
 
-            <Card className="min-h-0 flex flex-col overflow-hidden">
+            <Card className="flex min-w-0 flex-col overflow-hidden lg:min-h-0">
                 <CardHeader className="gap-4">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                        <div className="min-w-0">
                             <CardTitle className="text-lg">{graph.title}</CardTitle>
-                            <CardDescription className="text-md">{graph.description}</CardDescription>
+                            <CardDescription className="text-base">{graph.description}</CardDescription>
                         </div>
-                        <div className="flex gap-2">
+
+                        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
                             <Select value={graph.title} onValueChange={(v) => v && setGraphId(v)}>
-                                <SelectTrigger className="w-[220px]">
+                                <SelectTrigger className="w-full sm:w-[220px]">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -134,15 +134,15 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
                                                     </SelectItem>
                                                 ))}
                                             </SelectGroup>
-                                            {idx < GRAPHS.length && <SelectSeparator />}
+                                            {idx < GRAPHS.length - 1 && <SelectSeparator />}
                                         </React.Fragment>
                                     ))}
                                 </SelectContent>
                             </Select>
 
                             {graph.usesN && (
-                                <Select items={nOptions} defaultValue={100} onValueChange={(v) => v && setN(v)}>
-                                    <SelectTrigger>
+                                <Select items={nOptions} value={n} onValueChange={(v) => v && setN(v)}>
+                                    <SelectTrigger className="min-w-0 flex-1 sm:flex-none">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent alignItemWithTrigger>
@@ -158,8 +158,8 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
                             )}
 
                             {graph.usesBins && (
-                                <Select items={binOptions} defaultValue={15} onValueChange={(v) => v && setBins(v)}>
-                                    <SelectTrigger>
+                                <Select items={binOptions} value={bins} onValueChange={(v) => v && setBins(v)}>
+                                    <SelectTrigger className="min-w-0 flex-1 sm:flex-none">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent alignItemWithTrigger>
@@ -176,33 +176,36 @@ export function LeaderboardExplorer({ periods, initial }: ExplorerProps) {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className={cn(
-                    "min-h-0 flex-1 transition-opacity",
-                    loading ? "opacity-50" : ""
-                )}>
-                        {error ? (
-                            <p className="text-sm text-destructive">{error}</p>
-                        ) : !leaderboard || leaderboard.entries.length === 0 ? (
-                            <Empty>
-                                <EmptyHeader>
-                                    <EmptyMedia variant="icon">
-                                        <FolderOpenIcon />
-                                    </EmptyMedia>
-                                    <EmptyTitle>No scrapes found</EmptyTitle>
-                                    <EmptyDescription>
-                                        The selected date range hasn't happened yet, or we're too far into the future
-                                    </EmptyDescription>
-                                </EmptyHeader>
-                            </Empty>
-                        ) : (
-                            graph.render({
-                                entries: leaderboard.entries,
-                                n,
-                                bins,
-                                kind,
-                                period
-                            })
-                        )}
+
+                <CardContent
+                    className={cn(
+                        "h-100 min-w-0 w-full transition-opacity sm:h-[30rem] lg:h-auto lg:min-h-0 lg:flex-1",
+                        loading && "opacity-50"
+                    )}
+                >
+                    {error ? (
+                        <p className="text-sm text-destructive">{error}</p>
+                    ) : !leaderboard || leaderboard.entries.length === 0 ? (
+                        <Empty className="h-full">
+                            <EmptyHeader>
+                                <EmptyMedia variant="icon">
+                                    <FolderOpenIcon />
+                                </EmptyMedia>
+                                <EmptyTitle>No scrapes found</EmptyTitle>
+                                <EmptyDescription>
+                                    The selected date range hasn't happened yet, or we're too far into the future
+                                </EmptyDescription>
+                            </EmptyHeader>
+                        </Empty>
+                    ) : (
+                        graph.render({
+                            entries: leaderboard.entries,
+                            n,
+                            bins,
+                            kind,
+                            period,
+                        })
+                    )}
                 </CardContent>
             </Card>
         </div>
