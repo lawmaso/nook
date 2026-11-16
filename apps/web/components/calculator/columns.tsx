@@ -67,7 +67,7 @@ export const columns = columnHelper.columns([
         header: ({ column }) => SortedColumn({ column, text: columnLabels[column.id] }),
         cell: ({ row }) => <span className="tabular-nums">{formatLarge(row.getValue("total_points"))}</span>
     }),
-    columnHelper.accessor((e) => `${e.solved}/${e.attempted}`, {
+    columnHelper.accessor((e) => `${formatLarge(e.solved)}/${formatLarge(e.attempted)}`, {
         id: "solved_attempted",
         header: ({ column }) => SortedColumn({ column, text: columnLabels[column.id] }),
         cell: ({ getValue }) => <span className="tabular-nums">{getValue()}</span>
