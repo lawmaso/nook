@@ -17,8 +17,7 @@ type Stats struct {
 }
 
 type Client struct {
-	http    *http.Client  // reusable http client; go supports pooling
-	timeout time.Duration // max time allowed per scrape
+	http *http.Client // reusable http client; go supports pooling
 }
 
 func NewClient() *Client {
