@@ -2,7 +2,7 @@
 ---- Nook Daemon queries ----
 -----------------------------
 
--- name: UpsertUser :exec
+-- name: UpsertUsers :batchexec
 INSERT INTO users (uid, username, member_since)
 VALUES (@uid, @username, @member_since)
 ON CONFLICT (uid) DO UPDATE SET
@@ -32,7 +32,7 @@ INSERT INTO scrape_failures (
     @error
 );
 
--- name: InsertScrapeEntry :exec
+-- name: InsertScrapeEntries :copyfrom
 INSERT INTO scrape_entries (
     scrape_id, uid, rank, total_points,
     solved, attempted, acceptance_rate,

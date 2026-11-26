@@ -152,19 +152,7 @@ func (q *Queries) InsertScrape(ctx context.Context, arg InsertScrapeParams) (int
 	return scrape_id, err
 }
 
-const insertScrapeEntry = `-- name: InsertScrapeEntry :exec
-INSERT INTO scrape_entries (
-    scrape_id, uid, rank, total_points,
-    solved, attempted, acceptance_rate,
-    avg_time_s, avg_points, last_active
-) VALUES (
-    $1, $2, $3, $4,
-    $5, $6, $7,
-    $8, $9, $10
-)
-`
-
-type InsertScrapeEntryParams struct {
+type InsertScrapeEntriesParams struct {
 	ScrapeID       int64              `json:"scrape_id"`
 	Uid            int32              `json:"uid"`
 	Rank           int32              `json:"rank"`
@@ -175,22 +163,6 @@ type InsertScrapeEntryParams struct {
 	AvgTimeS       float64            `json:"avg_time_s"`
 	AvgPoints      float64            `json:"avg_points"`
 	LastActive     pgtype.Timestamptz `json:"last_active"`
-}
-
-func (q *Queries) InsertScrapeEntry(ctx context.Context, arg InsertScrapeEntryParams) error {
-	_, err := q.db.Exec(ctx, insertScrapeEntry,
-		arg.ScrapeID,
-		arg.Uid,
-		arg.Rank,
-		arg.TotalPoints,
-		arg.Solved,
-		arg.Attempted,
-		arg.AcceptanceRate,
-		arg.AvgTimeS,
-		arg.AvgPoints,
-		arg.LastActive,
-	)
-	return err
 }
 
 const insertScrapeFailure = `-- name: InsertScrapeFailure :exec
@@ -261,27 +233,4 @@ func (q *Queries) ReliabilitySince(ctx context.Context, since pgtype.Timestamptz
 		&i.RecoveryPct,
 	)
 	return i, err
-}
-
-const upsertUser = `-- name: UpsertUser :exec
-
-INSERT INTO users (uid, username, member_since)
-VALUES ($1, $2, $3)
-ON CONFLICT (uid) DO UPDATE SET
-    username = EXCLUDED.username,
-    member_since = COALESCE(EXCLUDED.member_since, users.member_since)
-`
-
-type UpsertUserParams struct {
-	Uid         int32       `json:"uid"`
-	Username    string      `json:"username"`
-	MemberSince pgtype.Date `json:"member_since"`
-}
-
-// ---------------------------
-// -- Nook Daemon queries ----
-// ---------------------------
-func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) error {
-	_, err := q.db.Exec(ctx, upsertUser, arg.Uid, arg.Username, arg.MemberSince)
-	return err
 }
