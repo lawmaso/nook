@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -33,12 +34,23 @@ func run(log *slog.Logger) error {
 	defer stop()
 
 	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		return errors.New("DATABASE_URL not set")
+	}
 
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
 		return fmt.Errorf("connect db: %w", err)
 	}
 	defer pool.Close()
+
+	pingCtx, cancel := context.WithTimeout(ctx, 6*time.Second)
+	defer cancel()
+
+	if err := pool.Ping(pingCtx); err != nil {
+		return fmt.Errorf("ping db: %v", err)
+	}
+	log.Info("connected to db")
 
 	d := daemon.New(
 		scraper.NewClient(),
