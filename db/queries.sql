@@ -74,6 +74,6 @@ WITH s AS (
     FROM scrape_failures WHERE failed_at >= @since
 )
 SELECT s.successes, s.recovered, f.failures,
-       ROUND(100.0 * s.successes / NULLIF(s.successes + s.failures, 0), 2)::float8 AS success_pct,
-       ROUND(100.0 * s.recovered / NULLIF(s.recovered + s.failures, 0), 2)::float8 AS recovery_pct
+       ROUND(100.0 * s.successes / NULLIF(s.successes + f.failures, 0), 2)::float8 AS success_pct,
+       ROUND(100.0 * s.recovered / NULLIF(s.recovered + f.failures, 0), 2)::float8 AS recovery_pct
 FROM s, f;
