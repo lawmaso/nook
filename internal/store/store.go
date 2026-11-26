@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -33,6 +34,19 @@ func (st *Store) PersistScrape(
 	stats *scraper.Stats,
 	attempts Attempts,
 ) error {
+	// NOTE: validate before opening a transaction since
+	// a duplicate UID violates scrape_entries primary-key constraint
+	// halfway through the COPYFROM
+	sorted := make([]*models.User, len(users))
+	copy(sorted, users)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].UID < sorted[j].UID })
+
+	for i := 1; i < len(users); i++ {
+		if sorted[i].UID == sorted[i-1].UID {
+			return fmt.Errorf("duplicate uid: %d", sorted[i].UID)
+		}
+	}
+
 	tx, err := st.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -53,24 +67,51 @@ func (st *Store) PersistScrape(
 		return fmt.Errorf("insert scrape: %w", err)
 	}
 
-	sorted := make([]*models.User, len(users))
-	copy(sorted, users)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i].UID < sorted[j].UID })
-
-	for i, u := range sorted {
-		if i > 0 && u.UID == sorted[i-1].UID {
-			return fmt.Errorf("duplicate uid: %d", u.UID)
+	if len(sorted) > 0 {
+		if err := upsertUsers(ctx, qtx, sorted); err != nil {
+			return err
 		}
+		if err := insertEntries(ctx, qtx, scrapeID, sorted); err != nil {
+			return err
+		}
+	}
 
-		if err := qtx.UpsertUser(ctx, sqlcgen.UpsertUserParams{
+	return tx.Commit(ctx)
+}
+
+func upsertUsers(
+	ctx context.Context,
+	qtx *sqlcgen.Queries,
+	users []*models.User,
+) error {
+	params := make([]sqlcgen.UpsertUsersParams, len(users))
+	for i, u := range users {
+		params[i] = sqlcgen.UpsertUsersParams{
 			Uid:         int32(u.UID),
 			Username:    u.Username,
 			MemberSince: memberSince(u.MemberSince),
-		}); err != nil {
-			return fmt.Errorf("upsert user %q: %w", u.Username, err)
 		}
+	}
 
-		if err := qtx.InsertScrapeEntry(ctx, sqlcgen.InsertScrapeEntryParams{
+	var errs []error
+	qtx.UpsertUsers(ctx, params).Exec(func(i int, err error) {
+		if err != nil {
+			errs = append(errs, fmt.Errorf("upsert user %q: %w", users[i].Username, err))
+		}
+	})
+
+	return errors.Join(errs...)
+}
+
+func insertEntries(
+	ctx context.Context,
+	qtx *sqlcgen.Queries,
+	scrapeID int64,
+	users []*models.User,
+) error {
+	params := make([]sqlcgen.InsertScrapeEntriesParams, len(users))
+	for i, u := range users {
+		params[i] = sqlcgen.InsertScrapeEntriesParams{
 			ScrapeID:       scrapeID,
 			Uid:            int32(u.UID),
 			Rank:           int32(u.Rank),
@@ -81,12 +122,19 @@ func (st *Store) PersistScrape(
 			AvgTimeS:       u.AverageTime,
 			AvgPoints:      u.AveragePoints,
 			LastActive:     pgtype.Timestamptz{Time: u.LastActive, Valid: true},
-		}); err != nil {
-			return fmt.Errorf("insert entry %q: %w", u.Username, err)
 		}
 	}
 
-	return tx.Commit(ctx)
+	n, err := qtx.InsertScrapeEntries(ctx, params)
+	if err != nil {
+		return fmt.Errorf("copy entries: %w", err)
+	}
+
+	if int(n) != len(params) {
+		return fmt.Errorf("copy entries: wrote %d of %d rows", n, len(params))
+	}
+
+	return nil
 }
 
 func (st *Store) PersistScrapeFailure(
@@ -126,62 +174,4 @@ func memberSince(t time.Time) pgtype.Date {
 		Time:  models.DayStart(t),
 		Valid: true,
 	}
-}
-
-func (st *Store) LastTwoScrapes(
-	ctx context.Context,
-	lb models.Leaderboard,
-) (prev, curr []*models.User, err error) {
-	var limit int32 = 2
-	scrapes, err := st.q.GetLatestScrapes(ctx, sqlcgen.GetLatestScrapesParams{
-		Kind:  sqlcgen.Leaderboard(lb.DBKind()),
-		Limit: limit,
-	})
-
-	if err != nil {
-		return nil, nil, fmt.Errorf(": %w", err)
-	}
-
-	load := func(scrapeID int64) ([]*models.User, error) {
-		entries, err := st.q.GetScrapeEntries(ctx, scrapeID)
-		if err != nil {
-			return nil, fmt.Errorf("get entries for scrape %d: %w", scrapeID, err)
-		}
-
-		users := make([]*models.User, 0, len(entries))
-		for _, e := range entries {
-			users = append(users, &models.User{
-				UID:            int(e.Uid),
-				Rank:           int(e.Rank),
-				Username:       e.Username,
-				LastActive:     e.LastActive.Time,
-				Solved:         int(e.Solved),
-				Attempted:      int(e.Attempted),
-				AcceptanceRate: e.AcceptanceRate,
-				AverageTime:    e.AvgTimeS,
-				AveragePoints:  e.AvgPoints,
-				TotalPoints:    int(e.TotalPoints),
-			})
-		}
-
-		return users, nil
-	}
-
-	totalScrapes := len(scrapes)
-
-	// Process latest scrape (i.e., most recent)
-	if totalScrapes > 0 {
-		if curr, err = load(scrapes[0].ScrapeID); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	// Process second latest scrape
-	if totalScrapes > 1 {
-		if prev, err = load(scrapes[1].ScrapeID); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	return prev, curr, nil
 }
